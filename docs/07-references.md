@@ -1,77 +1,80 @@
 # 07 参考资料与实现边界
 
-资料核对日期：**2026-10-19**。本文件区分外部接口事实与本项目选择，便于实现时回到原始契约确认。
+资料核对日期：**2026-10-19**。外部契约、参考设计、本项目选择和真实设备结果分开管理。
 
-## 1. Responses API 是唯一生成接口
+## 1. 需求和视觉来源
 
-| 原始资料 | 本项目采用的事实与位置 |
+[用户提供的分享对话](https://chatgpt.com/share/6ad62c74-a444-83ea-9f21-6a84cade9c97) 是产品和界面参考。完整文字、整体概念图和相关组件代码已读取；采用用户逐项选定设计，明确否定内容不恢复。用户本轮说明末尾精简是因为反复提问，不作为删除已选功能的依据。
+
+来源组件和代码节选见08；三个未定的选择只记09。分享页可见代码是DIL / GenUI而非Flutter，原讨论按钮不属于APP接口，整体概念图用于视觉参考。
+
+## 2. OpenAI 官方接口
+
+| 原始资料 | 采用事实 |
 | --- | --- |
-| [OpenAI 官方文本生成](https://developers.openai.com/api/docs/guides/text) | Responses 使用 input / instructions；最终文字在 output 消息内容中；SDK聚合属性不能等同原始HTTP结构。用于04请求与解析 |
-| [Responses 资源与状态](https://developers.openai.com/api/reference/go/resources/responses) | 区分completed、failed、incomplete等响应状态；模型完成与本地提交分别处理 |
-| [OpenAI 官方图片输入](https://developers.openai.com/api/docs/guides/images-vision) | input_image、data URL与图片细节参数。用于一次最多3图的同轮请求 |
-| [OpenAI 官方模型列表](https://developers.openai.com/api/reference/resources/models/methods/list) | GET /models返回基本模型信息；客户端从ID选择，不把列表当图片能力检查 |
-| [OpenAI 官方会话状态](https://developers.openai.com/api/docs/guides/conversation-state) | 可由客户端提供历史；本项目选择每轮自带必要本地上下文，不依赖远程会话 |
-| [OpenAI 官方数据处理说明](https://developers.openai.com/api/docs/guides/your-data) | 请求存储与服务日志 / 数据处理并非同一概念；store=false不被描述为服务商零保留承诺 |
+| [Responses文本](https://developers.openai.com/api/docs/guides/text) | input / instructions、output中最终助手文字，不能假设固定output[0] |
+| [Responses资源与状态](https://developers.openai.com/api/reference/go/resources/responses) | 模型completed与本地提交状态分开 |
+| [Streaming Responses](https://developers.openai.com/api/docs/guides/streaming-responses) | stream=true，文本delta和completed / error事件；用于04流式边界 |
+| [图片输入](https://developers.openai.com/api/docs/guides/images-vision) | input_image、data URL和图片detail |
+| [模型列表](https://developers.openai.com/api/reference/resources/models/methods/list) | data中的模型ID；列表不代表能力已验证 |
+| [会话状态](https://developers.openai.com/api/docs/guides/conversation-state) | 客户端可提供历史，本项目不依赖远程会话 |
+| [数据处理](https://developers.openai.com/api/docs/guides/your-data) | store=false不等同第三方零日志承诺 |
 
-服务要求：能按约定处理 Responses 的同步文字 / 图片输入、返回可解析的最终文本。生成、模型检查和补算只有 `POST {base_url}/responses` 这一条路径，模型列表另用 `GET {base_url}/models`。
+本项目只用 /responses 和 /models。饮食JSON、lookup、子操作、流式JSON中reply字段是本项目协议，不是API原生业务能力。可查到官方function calling说明不代表本项目强制使用tools；不增加兼容层来掩盖实际模型不能遵循约定。
 
-官方资料用于确定客户端契约；第三方服务的鉴权、模型权限、状态字段和图片处理在M2、M3使用实际配置确认。
+文字模型需支持SSE和业务JSON，图片模型需支持图像和摘要JSON。真实代理的路径、授权、状态、SSE事件与输出质量待用户配置实际服务后确认；当前无真实Key调用证据。
 
-## 2. Flutter、SQLite 与设备能力
+## 3. Flutter、SQLite和设备依赖
 
-| 原始资料 | 采用内容 |
+| 资料 | 用途 |
 | --- | --- |
-| [Flutter SQLite使用](https://docs.flutter.dev/cookbook/persistence/sqlite) | 使用sqflite保存本地结构数据，参数化查询 |
-| [sqflite维护者文档](https://pub.dev/packages/sqflite) | 数据库事务、迁移、事务对象使用和异常回滚；用于操作与回执原子提交 |
-| [SQLite外键](https://www.sqlite.org/foreignkeys.html) | 连接需显式启用外键，删除方向决定关联数据是否保留 |
-| [http维护者文档](https://pub.dev/packages/http) | 普通HTTP客户端与AbortableRequest取消；本项目不用透明RetryClient |
-| [image_picker维护者文档](https://pub.dev/packages/image_picker) | Android系统选择器、API24起、活动重建丢失结果恢复、拍照缓存的临时性 |
-| [flutter_image_compress维护者仓库](https://github.com/fluttercandies/flutter_image_compress) | 原生压缩、方向和EXIF选项；尺寸参数不能仅凭名字当作硬性最长边 |
-| [path_provider维护者文档](https://pub.dev/packages/path_provider) | 获取APP适用私有目录，不硬编码Android绝对路径 |
-| [flutter_file_dialog维护者文档](https://pub.dev/documentation/flutter_file_dialog/latest/index.html) | Android API24起的文件选择与保存，供备份导入导出 |
-| [uuid维护者文档](https://pub.dev/packages/uuid) | 客户端生成稳定实体与操作标识，不手写随机ID算法 |
+| [Flutter SQLite](https://docs.flutter.dev/cookbook/persistence/sqlite) | 本地关系数据和参数绑定 |
+| [sqflite](https://pub.dev/packages/sqflite) | 事务、迁移、事务对象和回滚 |
+| [SQLite外键](https://www.sqlite.org/foreignkeys.html) | 显式开启外键、正确关联删除方向 |
+| [http](https://pub.dev/packages/http) | 请求、流和取消，不启用透明RetryClient |
+| [image_picker](https://pub.dev/packages/image_picker) | 系统选择器、Android活动恢复、临时拍照结果 |
+| [flutter_image_compress](https://github.com/fluttercandies/flutter_image_compress) | 压缩、朝向、EXIF与实际尺寸参数 |
+| [path_provider](https://pub.dev/packages/path_provider) | 私有目录，不硬编码Android路径 |
+| [flutter_file_dialog](https://pub.dev/documentation/flutter_file_dialog/latest/index.html) | Android系统文件导入导出 |
+| [uuid](https://pub.dev/packages/uuid) | 客户端稳定实体标识 |
+| [flutter_secure_storage](https://pub.dev/packages/flutter_secure_storage) | 安全保存Key与备份相关限制 |
+| [cryptography](https://pub.dev/packages/cryptography) | 成熟AES-GCM、PBKDF2和安全随机数能力；不自写算法 |
+| [Android自动备份](https://developer.android.com/identity/data/autobackup) | 云备份与设备迁移有独立规则，不能只靠allowBackup |
 
-本项目只交付 Android。Windows 是开发宿主，不因文档放在Windows上就增加桌面运行、桌面SQLite适配或跨平台文件选择工作。
+Android是唯一运行目标，Windows是开发宿主。不因文档存Windows就增加桌面SQLite或跨平台应用适配。
 
-## 3. 凭据与平台备份
-
-- [flutter_secure_storage维护者文档](https://pub.dev/packages/flutter_secure_storage)：安全保存敏感字符串，Android备份处理需要显式配置。选择默认安全存储，不引入生物识别、额外口令或自建加密算法。
-- [Android官方自动备份](https://developer.android.com/identity/data/autobackup)：系统默认备份和设备迁移有独立规则，Android版本会影响配置方式。手动导出功能不能代替系统备份排除配置。
-
-实现时按实际锁定插件版本确认生成的Android存储位置与备份排除项；不凭包名猜测所有设备上的文件名。
-
-## 4. 项目选择，不是外部协议保证
-
-下列默认值为V1的具体实现约定：
+## 4. 本项目初始约定
 
 | 项目 | 约定 |
 | --- | --- |
-| Android最低版本 | API24 |
-| 前台聊天 | 可连续入队、单任务串行，失败 / 澄清暂停 |
-| 网络生成 | Responses非流式、store=false、不建立远程会话 |
-| 业务结构 | 提示词JSON + 本地协议校验，不强制工具调用或原生JSON Schema |
-| 主备 | 每轮同类型主一次、兜底一次；失败不自动切换其他接口 |
-| 单模型截止时间 | 文字90秒、图片120秒 |
-| 上下文 | 近期12条已处理消息、近期20项食物、10次体重、明确日期候选每日期最多50项，按ID去重 |
-| 图片 | 最多3张；JPEG、长边约1600、质量85起点；压缩后每张最多5MiB |
-| 补算 | 前台正常AI成功且队列清空后触发，单批最多10项，覆盖各历史日期空值 |
-| 备份 | format1 / schema1的UTF-8 JSON；不含Key、AI配置、图片、草稿和可重放状态 |
-| 恢复 | 整库业务替换，先保留最近一份安全副本；初始导入上限100MiB |
-| 外观 | 浅色温柔配色、系统字体、原生组件，三页导航 |
+| Android | 最低API24，其他工具链开始实施时记录 |
+| 状态 / 路由 | ChangeNotifier / Navigator，三页保留状态 |
+| 网络 | Responses-only、store=false；text流式、vision摘要可非流式 |
+| 主备 | 每阶段主一次、对应兜底一次；有界一次lookup往返 |
+| 图文路径 | D03暂定A，两阶段，见09 |
+| 直接编辑 / 引用 | D01、D02暂定A，见09 |
+| 单次截止 | text90秒、vision120秒，取消与代次保护 |
+| 上下文 | 近期12条消息、20食物、10体重、明确日期每日50项；相关资料，不上传全库 |
+| 图片 | 3张、JPEG、长边约1600 / 质量85起、压缩后5MiB/张 |
+| 本地动作 | 每独立事项事务，软删除、版本保护、前后快照和逐项撤销 |
+| 补算 | 所有日期缺失字段，每批10项，前台正常成功后且用户队列空闲 |
+| 备份 | format1 / schema1快照；CSV另用；可选密码信封，不含Key / AI配置 / 图片 |
+| 加密参数 | 05中的固定格式1、PBKDF2和AES-GCM参数；不是性能承诺 |
+| 导入 | 原文件与解密内容各100MiB上限，整库替换，先安全副本 |
+| 外观 | 参考蜜桃 / 奶油白体系，深色 / 跟随系统，可读字号与48dp点击区 |
 
-图片识别表现、接口可接受大小与实际耗时在M2、M3确认。真实输入改变了条件时，在受影响模块调整常量与文档，保持单一接口和最小实现。
+这些是设计选择，不是服务商或设备保证。修改常量须说明实际原因并同步受影响文档，不静默扩大功能。
 
-## 5. 开始编码时记录的环境
+## 5. 实施时记录的信息
 
-在实现记录中填写实际值，不在设计阶段捏造：
+- Flutter / Dart、JDK、SDK、Gradle、插件锁定版本。
+- applicationId、显示名、版本与签名保存位置；不记录密码 / 私钥。
+- 目标设备Android版本与允许的运行 / 构建 / 验收范围。
+- 实际服务模型列表、四角色对应能力结果、脱敏错误，不记录Key。
+- D01–D03用户答案；未确认时不自行把暂定值改为已确认。
 
-- Flutter / Dart、JDK、Android SDK、Gradle与插件锁定版本。
-- applicationId、显示名、最低SDK、版本号和签名保存位置；不记录签名密码或私钥内容。
-- 目标设备Android版本、是否真实设备、允许执行的运行 / 构建 / 验收范围。
-- 用户在APP中配置的服务是否提供模型列表、四个模型角色的实际调用结果；记录模型ID与脱敏错误，不记录Key。
+## 6. 文档维护
 
-## 6. 文档维护方式
+需求01、交互02、数据03、AI04、状态和安全05、计划06、外部依据07、设计来源08、待定09。一个字段只在03定义，一种网络协议只在04定义；其他文件引用，不另造矛盾契约。
 
-需求规则先更新01；交互更新02；字段、状态、删除关系更新03；Responses和业务操作格式更新04；补算、队列、图片和恢复行为更新05；任务与验收同步06。README只保留入口和核心决定。
-
-不把临时进度、推测或待验证结论写成AGENTS.md的长期规则。实现发现真实约束后，只维护相关文档和必要的项目规则，不复制出第二套相互冲突的接口约定。
+临时进度和待确认事项不写AGENTS。默认不新增或执行测试，不把文档阅读、JSON示例或源代码参考说成实际产品已验收。
