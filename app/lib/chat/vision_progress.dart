@@ -11,6 +11,61 @@ double estimatedVisionProgress(Duration elapsed) {
   return .95 * (1 - (1 - fraction) * (1 - fraction));
 }
 
+class ImageRequestProgress extends StatelessWidget {
+  final bool uploading;
+  final int sentBytes;
+  final int? totalBytes;
+  final DateTime? waitingStartedAt;
+  const ImageRequestProgress(
+      {required this.uploading,
+      this.sentBytes = 0,
+      this.totalBytes,
+      this.waitingStartedAt,
+      super.key});
+
+  String size(int bytes) => bytes < 1000000
+      ? '${(bytes / 1000).toStringAsFixed(0)} KB'
+      : '${(bytes / 1000000).toStringAsFixed(1)} MB';
+
+  @override
+  Widget build(BuildContext context) {
+    if (!uploading && waitingStartedAt != null) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text('图片请求已发出${totalBytes == null ? '' : ' · ${size(totalBytes!)}'}',
+            style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 8),
+        const Text('等待识别结果'),
+        const SizedBox(height: 8),
+        VisionProgress(startedAt: waitingStartedAt!),
+      ]);
+    }
+    final total = totalBytes;
+    final value = total == null || total == 0
+        ? null
+        : (sentBytes / total).clamp(0.0, 1.0);
+    final percent = value == null ? null : (value * 100).floor();
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text(total == null ? '准备图片…' : '上传图片'),
+        if (percent != null) Text('$percent%'),
+      ]),
+      const SizedBox(height: 8),
+      ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+              value: value,
+              minHeight: 6,
+              semanticsLabel: '图片请求上传进度',
+              semanticsValue: percent == null ? '准备中' : '$percent%')),
+      if (total != null) ...[
+        const SizedBox(height: 8),
+        Text('${size(sentBytes)} / ${size(total)} · 本机发送进度',
+            style: Theme.of(context).textTheme.bodySmall),
+      ],
+    ]);
+  }
+}
+
 class VisionProgress extends StatefulWidget {
   final DateTime startedAt;
   const VisionProgress({required this.startedAt, super.key});

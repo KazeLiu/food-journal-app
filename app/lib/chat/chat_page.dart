@@ -591,7 +591,7 @@ class _ChatPageState extends State<ChatPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(children: [
-                        if (s.chat.visionStartedAt != null)
+                        if (s.chat.visionActive)
                           const Icon(Icons.image_search_outlined, size: 20)
                         else
                           const SizedBox(
@@ -604,11 +604,14 @@ class _ChatPageState extends State<ChatPage> {
                             onPressed: () => perform(context, s.chat.stop),
                             child: const Text('停止')),
                       ]),
-                      if (s.chat.visionStartedAt != null)
+                      if (s.chat.visionActive)
                         Padding(
                             padding: const EdgeInsets.only(top: 8),
-                            child: VisionProgress(
-                                startedAt: s.chat.visionStartedAt!)),
+                            child: ImageRequestProgress(
+                                uploading: s.chat.visionUploading,
+                                sentBytes: s.chat.visionUploadedBytes,
+                                totalBytes: s.chat.visionUploadTotal,
+                                waitingStartedAt: s.chat.visionStartedAt)),
                       if (s.chat.fallbackReason != null)
                         Text('主模型：${s.chat.fallbackReason}',
                             style: Theme.of(context).textTheme.bodySmall),

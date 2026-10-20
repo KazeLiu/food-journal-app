@@ -113,9 +113,11 @@ class AiGateway {
       String? reasoningEffort,
       bool requestReasoningSummary = false,
       void Function(String)? onReasoning,
+      void Function(int sent, int total)? onUploadProgress,
       void Function(String)? onReply}) async {
-    final client =
-        IOClient(HttpClient()..connectionTimeout = const Duration(seconds: 30));
+    final transport = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 30);
+    final client = IOClient(transport);
     token.check();
     token._abort = client.close;
     var timedOut = false;
@@ -142,7 +144,10 @@ class AiGateway {
           'instructions': instructions,
           'input': input
         });
-      final response = await client.send(request);
+      final response = onUploadProgress == null
+          ? await client.send(request)
+          : await _sendWithProgress(
+              transport, request, token, onUploadProgress);
       _checkHttp(response.statusCode);
       Json? finalResponse;
       final reasoning = _ReasoningOutput();
@@ -246,6 +251,36 @@ class AiGateway {
       token._abort = null;
       client.close();
     }
+  }
+
+  Future<http.StreamedResponse> _sendWithProgress(
+      HttpClient client,
+      http.Request request,
+      RequestToken token,
+      void Function(int sent, int total) onProgress) async {
+    final bytes = request.bodyBytes;
+    onProgress(0, bytes.length);
+    token.check();
+    final outgoing = await client.openUrl(request.method, request.url);
+    outgoing.followRedirects = false;
+    outgoing.contentLength = bytes.length;
+    outgoing.bufferOutput = false;
+    request.headers.forEach((name, value) => outgoing.headers.set(name, value));
+    const chunkSize = 64 * 1024;
+    for (var offset = 0; offset < bytes.length;) {
+      token.check();
+      final end =
+          offset + chunkSize < bytes.length ? offset + chunkSize : bytes.length;
+      outgoing.add(bytes.sublist(offset, end));
+      // flush统计本机交给传输层的字节，不代表服务端已收齐或已开始推理。
+      await outgoing.flush();
+      token.check();
+      offset = end;
+      onProgress(offset, bytes.length);
+    }
+    token.check();
+    final response = await outgoing.close();
+    return http.StreamedResponse(response, response.statusCode);
   }
 
   Future<String> _request(String baseUrl, String key, String path, Json? body,

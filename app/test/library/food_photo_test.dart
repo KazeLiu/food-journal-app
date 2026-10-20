@@ -22,6 +22,7 @@ Json photoResponse() => {
       'outcome': 'recognized',
       'kind': 'packaged_food',
       'name': '测试酸奶',
+      'aliases': ['测试原味酸奶', '原味酸奶'],
       'brand': '测试品牌',
       'variant': '原味',
       'package_spec': '每瓶250g',
@@ -140,6 +141,15 @@ void main() {
     expect(draft['source']['label']['energy_value'], 418.4);
     expect(draft['source']['label']['energy_unit'], 'kJ');
     expect(draft['remarks'], '碳水一栏看不清');
+    expect(draft['aliases'], ['测试原味酸奶', '原味酸奶']);
+    expect(
+        parseFoodPhoto({
+          ...photoResponse(),
+          'aliases': [' 测试酸奶 ', '原味酸奶', ' 原味酸奶 ', '']
+        })['aliases'],
+        ['原味酸奶']);
+    final oldResponse = photoResponse()..remove('aliases');
+    expect(parseFoodPhoto(oldResponse)['aliases'], isEmpty);
     validateLibrarySource(draft['source']);
     final unknownBase =
         parseFoodPhoto({...photoResponse(), 'base_amount': null});
@@ -162,6 +172,10 @@ void main() {
   test('拒绝错误文字、负数、无效基准与非食品，不能把响应当写库动作', () {
     for (final patch in <Json>[
       {'name': []},
+      {'aliases': '不是列表'},
+      {
+        'aliases': [1]
+      },
       {'protein_g': '10'},
       {'fat_g': -1},
       {'base_amount': 0},
@@ -391,6 +405,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(captures, 1);
     expect(tester.widget<TextField>(field('名称')).controller!.text, '测试酸奶');
+    expect(tester.widget<TextField>(field('别名（用顿号分隔）')).controller!.text,
+        '测试原味酸奶、原味酸奶');
     expect(find.text('识别结果已填入，请核对后点击“保存资料”。'), findsOneWidget);
     expect(await store.records.library(), isEmpty);
     expect(await store.db.query('chat_messages'), isEmpty);
@@ -409,6 +425,7 @@ void main() {
     expect(jsonMap(saved['nutrition_json'])['calories_kcal'], 100);
     expect(jsonMap(saved['source_json'])['type'], 'label');
     expect(jsonMap(saved['source_json'])['remarks'], '碳水一栏看不清');
+    expect(jsonDecode(saved['aliases_json'] as String), ['测试原味酸奶', '原味酸奶']);
     expect(await store.db.query('chat_attachments'), isEmpty);
     expect(await store.services.settings.get('library_editor_draft'), isNull);
     expect(tester.takeException(), isNull);

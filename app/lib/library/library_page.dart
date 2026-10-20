@@ -371,7 +371,6 @@ class _LibraryEditorState extends State<LibraryEditor> {
     if (!mounted) return;
     final progress = ValueNotifier<Json>({});
     final navigator = Navigator.of(context, rootNavigator: true);
-    final startedAt = DateTime.now();
     final route = DialogRoute<void>(
         context: context,
         barrierDismissible: false,
@@ -388,7 +387,12 @@ class _LibraryEditorState extends State<LibraryEditor> {
                             Text(
                                 '正在综合 ${photos.length} 张照片${state['fallback'] == true ? ' · 使用兜底模型' : ''}${state['retry'] == true ? ' · 重试 1/1' : ''}'),
                             const SizedBox(height: 12),
-                            VisionProgress(startedAt: startedAt),
+                            ImageRequestProgress(
+                                uploading: state['waiting_started_at'] == null,
+                                sentBytes: state['sent'] as int? ?? 0,
+                                totalBytes: state['total'] as int?,
+                                waitingStartedAt:
+                                    state['waiting_started_at'] as DateTime?),
                             if (state['reason'] != null)
                               Text('主模型：${state['reason']}',
                                   style: Theme.of(context).textTheme.bodySmall),
@@ -414,7 +418,24 @@ class _LibraryEditorState extends State<LibraryEditor> {
         }
       }, onRetry: () {
         if (mounted && !token.cancelled) {
-          progress.value = {...progress.value, 'retry': true};
+          progress.value = {
+            ...progress.value,
+            'retry': true,
+            'sent': 0,
+            'total': null,
+            'waiting_started_at': null
+          };
+        }
+      }, onUploadProgress: (sent, total) {
+        if (mounted && !token.cancelled) {
+          progress.value = {
+            ...progress.value,
+            'sent': sent,
+            'total': total,
+            'waiting_started_at': sent < total
+                ? null
+                : progress.value['waiting_started_at'] ?? DateTime.now()
+          };
         }
       });
       token.check();
@@ -425,7 +446,7 @@ class _LibraryEditorState extends State<LibraryEditor> {
         brand.text = draft['brand'] as String? ?? '';
         variant.text = draft['variant'] as String? ?? '';
         package.text = draft['package_spec'] as String? ?? '';
-        aliases.clear();
+        aliases.text = (draft['aliases'] as List<String>).join('、');
         amount.text = draft['base_portion']['amount']?.toString() ?? '';
         unit.text = draft['base_portion']['unit'] as String? ?? '';
         description.text =

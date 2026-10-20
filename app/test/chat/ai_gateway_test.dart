@@ -17,6 +17,8 @@ void main() {
           Duration deadline = const Duration(seconds: 5),
           String? reasoningEffort,
           bool requestReasoningSummary = false,
+          List<Json> input = const [],
+          void Function(int sent, int total)? onUploadProgress,
           void Function(String)? onReasoning,
           void Function(String)? onReply}) =>
       server.withClient(() => gateway.generate(
@@ -24,15 +26,69 @@ void main() {
           key: 'fake-test-key',
           model: 'test-model',
           instructions: '固定测试协议',
-          input: [],
+          input: input,
           stream: stream,
           token: token ?? RequestToken(),
           deadline: deadline,
           reasoningEffort: reasoningEffort,
           requestReasoningSummary: requestReasoningSummary,
           onReasoning: onReasoning,
+          onUploadProgress: onUploadProgress,
           onReply: onReply));
   tearDown(() async => server.close());
+
+  test('图片请求按UTF8请求字节报告上传进度，发完后仍等待有效响应', () async {
+    final arrived = Completer<void>();
+    final release = Completer<void>();
+    server = await LocalAiServer.start((request, body) async {
+      arrived.complete();
+      await release.future;
+      await servePayload(request, finalPayload());
+    });
+    final progress = <(int, int)>[];
+    var finished = false;
+    final running = generate(input: [
+      {
+        'role': 'user',
+        'content': [
+          {'type': 'input_text', 'text': '中文图片请求' * 30000}
+        ]
+      }
+    ], onUploadProgress: (sent, total) => progress.add((sent, total)))
+        .then((value) {
+      finished = true;
+      return value;
+    });
+    await arrived.future;
+    expect(progress.first.$1, 0);
+    expect(progress.length, greaterThan(2));
+    final total = utf8.encode(jsonEncode(server.calls.single['body'])).length;
+    expect(progress.last, (total, total));
+    expect(progress.every((p) => p.$2 == total), isTrue);
+    for (var i = 1; i < progress.length; i++) {
+      expect(progress[i].$1, greaterThan(progress[i - 1].$1));
+    }
+    expect(finished, isFalse);
+    release.complete();
+    expect((await running)['reply'], '已理解');
+  });
+
+  test('上传前停止不建立请求，也不伪报100%', () async {
+    server = await LocalAiServer.start(
+        (request, body) => servePayload(request, finalPayload()));
+    final token = RequestToken();
+    final progress = <int>[];
+    await expectLater(
+        generate(
+            token: token,
+            onUploadProgress: (sent, total) {
+              progress.add(sent);
+              token.cancel();
+            }),
+        throwsA(isA<AppError>().having((e) => e.code, 'code', 'cancelled')));
+    expect(progress, [0]);
+    expect(server.calls, isEmpty);
+  });
 
   test('模型列表去重排序并忽略非字符串 ID', () async {
     server = await LocalAiServer.start((request, body) async {

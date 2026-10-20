@@ -26,6 +26,10 @@ class ChatCoordinator extends ChangeNotifier {
   int dataEpoch = 0;
   String? activeOperationId;
   DateTime? visionStartedAt;
+  bool visionUploading = false;
+  int visionUploadedBytes = 0;
+  int? visionUploadTotal;
+  bool get visionActive => visionUploading || visionStartedAt != null;
   String stageLabel = '';
   String liveReply = '';
   String liveReasoning = '';
@@ -772,10 +776,14 @@ class ChatCoordinator extends ChangeNotifier {
       for (var attempt = 0; attempt < modelRoles.length * 2; attempt++) {
         final modelRole = modelRoles[attempt ~/ 2];
         await _awaitForeground(token);
-        if (vision) visionStartedAt ??= DateTime.now();
-        stageLabel = '${vision ? '识别图片' : '整理回复'}'
-            '${attempt >= 2 ? ' · 使用兜底模型' : ''}'
+        if (vision) {
+          visionUploading = true;
+          visionUploadedBytes = 0;
+          visionUploadTotal = null;
+        }
+        final attemptLabel = '${attempt >= 2 ? ' · 使用兜底模型' : ''}'
             '${attempt.isOdd ? ' · 重试 1/1' : ''}';
+        stageLabel = '${vision ? '上传图片' : '整理回复'}$attemptLabel';
         liveReply = '';
         liveReasoning = '';
         bodyStarted = false;
@@ -800,6 +808,19 @@ class ChatCoordinator extends ChangeNotifier {
               stream: !vision,
               token: token,
               deadline: Duration(seconds: vision ? 120 : 90),
+              onUploadProgress: !vision
+                  ? null
+                  : (sent, total) {
+                      if (token.cancelled) return;
+                      visionUploadedBytes = sent;
+                      visionUploadTotal = total;
+                      visionUploading = sent < total;
+                      if (!visionUploading) {
+                        visionStartedAt ??= DateTime.now();
+                        stageLabel = '等待识别结果$attemptLabel';
+                      }
+                      notifyListeners();
+                    },
               onReasoning: (text) {
                 if (token.cancelled) return;
                 liveReasoning = text;
@@ -841,6 +862,9 @@ class ChatCoordinator extends ChangeNotifier {
     } finally {
       if (vision) {
         visionStartedAt = null;
+        visionUploading = false;
+        visionUploadedBytes = 0;
+        visionUploadTotal = null;
         notifyListeners();
       }
     }

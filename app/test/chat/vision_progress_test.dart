@@ -20,6 +20,40 @@ void main() {
     expect(estimatedVisionProgress(const Duration(days: 1)), .95);
   });
 
+  testWidgets('上传使用实际百分比，上传耗时不提前推进识别预估', (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+        home: Scaffold(
+            body: ImageRequestProgress(
+                uploading: true, sentBytes: 250000, totalBytes: 1000000))));
+    expect(find.text('上传图片'), findsOneWidget);
+    expect(find.text('25%'), findsOneWidget);
+    expect(find.byType(VisionProgress), findsNothing);
+    expect(
+        tester
+            .widget<LinearProgressIndicator>(
+                find.byType(LinearProgressIndicator))
+            .value,
+        .25);
+    await tester.pump(const Duration(minutes: 3));
+    expect(find.text('这次识别貌似有点长，请耐心等待。'), findsNothing);
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: ImageRequestProgress(
+                uploading: false,
+                sentBytes: 1000000,
+                totalBytes: 1000000,
+                waitingStartedAt: DateTime.now()))));
+    expect(find.text('等待识别结果'), findsOneWidget);
+    expect(find.textContaining('图片请求已发出'), findsOneWidget);
+    expect(
+        tester
+            .widget<LinearProgressIndicator>(
+                find.byType(LinearProgressIndicator))
+            .value,
+        lessThan(.01));
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('重建按原识图起点恢复，超过两分钟提示等待，新起点重置', (tester) async {
     Future<void> open(DateTime start) => tester.pumpWidget(
         MaterialApp(home: Scaffold(body: VisionProgress(startedAt: start))));
