@@ -269,6 +269,12 @@ class ContextBuilder {
           directed['local_date'] == null ? 'send_date' : 'user_selected',
       'selected_day_totals': {'local_date': day, ...await records.totals(day)},
       'selected_day_truncated': truncated,
+      'selected_day_exercises': await records.exercises(day),
+      'selected_day_exercise_totals': {
+        'local_date': day,
+        ...await records.exerciseTotals(day)
+      },
+      'exercise_reference_weight': await records.exerciseWeight(day),
       'quoted_message': quoted,
       'quoted_records': quotedRecords,
       'library': relevantLibrary,
@@ -331,9 +337,11 @@ class ContextBuilder {
         await target(
             type.contains('weight')
                 ? 'weight_records'
-                : ['update_food', 'delete_food'].contains(type)
-                    ? 'food_items'
-                    : 'meals',
+                : type.contains('exercise')
+                    ? 'exercise_records'
+                    : ['update_food', 'delete_food'].contains(type)
+                        ? 'food_items'
+                        : 'meals',
             scope['id']);
       }
       await target('meals', scope['meal_id']);
@@ -342,7 +350,8 @@ class ContextBuilder {
         final table = {
           'food': 'food_items',
           'meal': 'meals',
-          'weight': 'weight_records'
+          'weight': 'weight_records',
+          'exercise': 'exercise_records'
         }[candidate['type']];
         if (table != null) await target(table, candidate['id']);
       }
@@ -433,7 +442,8 @@ class ContextBuilder {
       if (value is Map) {
         if (value['id'] is String) ids.add(value['id'] as String);
         for (final e in value.entries) {
-          if (['meal_id', 'action_id', 'library_id'].contains(e.key) &&
+          if (['meal_id', 'action_id', 'library_id', 'weight_record_id']
+                  .contains(e.key) &&
               e.value is String) ids.add(e.value as String);
           visit(e.value);
         }
@@ -453,7 +463,8 @@ class ContextBuilder {
     void check(dynamic v) {
       if (v is Map) {
         for (final e in v.entries) {
-          if (['id', 'meal_id', 'action_id', 'library_id'].contains(e.key) &&
+          if (['id', 'meal_id', 'action_id', 'library_id', 'weight_record_id']
+                  .contains(e.key) &&
               e.value != null) require(ids.contains(e.value), '模型引用了未提供的记录');
           check(e.value);
         }
@@ -528,7 +539,7 @@ class ContextBuilder {
       nutrition(n);
     }
 
-    if (['create_meal', 'create_weight'].contains(type)) {
+    if (['create_meal', 'create_weight', 'create_exercise'].contains(type)) {
       require(
           action['client_ref'] is String &&
               action['local_date'] is String &&
@@ -548,6 +559,13 @@ class ContextBuilder {
       for (final f in action['items'] as List) {
         food(f);
       }
+    } else if (type == 'create_exercise') {
+      validateExercise(action);
+      require(
+          action['follow_up_question'] == null ||
+              action['follow_up_question'] is String &&
+                  (action['follow_up_question'] as String).trim().isNotEmpty,
+          '运动补充问题格式不正确');
     } else if (type == 'create_weight') {
       require(action['input_value'] is String && action['input_unit'] is String,
           '体重输入格式不正确');
@@ -592,6 +610,12 @@ class ContextBuilder {
         require(action['patch'] is Map && (action['patch'] as Map).isNotEmpty,
             '缺少需要修改的字段');
         if (type == 'update_food') foodPatch(action['patch']);
+        if (type == 'update_exercise') {
+          require(
+              (action['patch'] as Map).keys.every(
+                  [...exerciseFields, 'local_date', 'local_time'].contains),
+              '不支持的运动修改字段');
+        }
       }
     }
   }

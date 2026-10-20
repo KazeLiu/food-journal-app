@@ -36,6 +36,22 @@ Future<void> openWeightEditor(BuildContext context, AppServices s,
               operationId: operationId)));
 }
 
+Future<void> openExerciseEditor(BuildContext context, AppServices s,
+        {String? date,
+        Json? exercise,
+        String? originalText,
+        String? actionId,
+        String? operationId}) =>
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => ExerciseEditor(s,
+                date: date ?? today(),
+                exercise: exercise,
+                originalText: originalText,
+                actionId: actionId,
+                operationId: operationId)));
+
 Future<void> _finishManual(
     AppServices s, Json receipt, String? operationId) async {
   final action =
@@ -417,6 +433,210 @@ class WeightEditor extends StatefulWidget {
       super.key});
   @override
   State<WeightEditor> createState() => _WeightEditorState();
+}
+
+class ExerciseEditor extends StatefulWidget {
+  final AppServices s;
+  final String date;
+  final Json? exercise;
+  final String? originalText;
+  final String? actionId;
+  final String? operationId;
+  const ExerciseEditor(this.s,
+      {required this.date,
+      this.exercise,
+      this.originalText,
+      this.actionId,
+      this.operationId,
+      super.key});
+  @override
+  State<ExerciseEditor> createState() => _ExerciseEditorState();
+}
+
+class _ExerciseEditorState extends State<ExerciseEditor> {
+  late String date = widget.exercise?['local_date'] as String? ?? widget.date;
+  late String? time = widget.exercise == null
+      ? clockTime(DateTime.now())
+      : widget.exercise!['local_time'] as String?;
+  late final name =
+      TextEditingController(text: widget.exercise?['name'] as String? ?? '');
+  late final duration = TextEditingController(
+      text: widget.exercise?['duration_minutes'] == null
+          ? ''
+          : widget.exercise!['duration_minutes'].toString());
+  late final distance = TextEditingController(
+      text: widget.exercise?['distance_meters'] == null
+          ? ''
+          : widget.exercise!['distance_meters'].toString());
+  late final intensity = TextEditingController(
+      text: widget.exercise?['intensity'] as String? ?? '');
+  late final calories = TextEditingController(
+      text: widget.exercise?['calories_kcal']?.toString() ?? '');
+  late final note =
+      TextEditingController(text: widget.exercise?['note'] as String? ?? '');
+  bool dirty = false;
+  bool busy = false;
+  bool clearedEstimate = false;
+
+  @override
+  void dispose() {
+    for (final c in [name, duration, distance, intensity, calories, note]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void changedParameters() {
+    dirty = true;
+    if (widget.exercise?['calories_source'] == 'ai' && !clearedEstimate) {
+      calories.clear();
+      setState(() => clearedEstimate = true);
+    }
+  }
+
+  num? numeric(TextEditingController field, String label,
+      {bool positive = false, bool integer = false}) {
+    final raw = field.text.trim();
+    if (raw.isEmpty) return null;
+    final value = num.tryParse(raw);
+    require(
+        value != null && value.isFinite && (positive ? value > 0 : value >= 0),
+        '$label请输入${positive ? '正数' : '非负数'}，未知留空');
+    require(!integer || value == value!.roundToDouble(), '$label请输入整数');
+    return integer ? value!.toInt() : value;
+  }
+
+  Future<void> save() async {
+    setState(() => busy = true);
+    try {
+      final energy = numeric(calories, '消耗', integer: true);
+      final old = widget.exercise;
+      final preserve =
+          old != null && !clearedEstimate && old['calories_kcal'] == energy;
+      final patch = <String, dynamic>{
+        'local_date': date,
+        'local_time': time,
+        'name': name.text.trim(),
+        'duration_minutes': numeric(duration, '时长', positive: true),
+        'distance_meters': numeric(distance, '距离'),
+        'intensity':
+            intensity.text.trim().isEmpty ? null : intensity.text.trim(),
+        'calories_kcal': energy,
+        'calories_source': energy == null
+            ? 'unknown'
+            : preserve
+                ? old['calories_source']
+                : 'user',
+        'calories_basis': energy == null
+            ? null
+            : preserve
+                ? jsonMap(old['calories_basis_json'] as String)
+                : {'note': '用户本次填写'},
+        'note': note.text.trim().isEmpty ? null : note.text.trim()
+      };
+      validateExercise(patch);
+      final payload = old == null
+          ? <String, dynamic>{
+              'type': 'create_exercise',
+              ...patch,
+              'client_ref': newId(),
+              'raw_description': widget.originalText ?? name.text.trim()
+            }
+          : <String, dynamic>{
+              'type': 'update_exercise',
+              'id': old['id'],
+              'expected_version': old['version'],
+              'patch': patch
+            };
+      final receipt = await widget.s.chat.manualSave<Json>(
+          actionId: widget.actionId,
+          operationId: widget.operationId,
+          save: () => widget.s.committer.local(payload,
+              actionId: widget.actionId,
+              sourceOperationId: widget.operationId));
+      await _finishManual(widget.s, receipt, widget.operationId);
+      if (mounted) {
+        dirty = false;
+        Navigator.pop(context);
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ConfirmExit(
+      onExit: () async =>
+          !busy &&
+          (!dirty ||
+              await confirm(context, '放弃未保存的运动？', '本次内容不会保存。', accept: '放弃')),
+      child: Scaffold(
+          appBar:
+              AppBar(title: Text(widget.exercise == null ? '记录运动' : '编辑运动')),
+          body: ListView(padding: const EdgeInsets.all(16), children: [
+            if (widget.originalText != null)
+              Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text('原消息：${widget.originalText}')),
+            TextField(
+                controller: name,
+                autofocus: true,
+                decoration: const InputDecoration(
+                    labelText: '运动名称（必填）', hintText: '如：游泳、散步'),
+                onChanged: (_) => changedParameters()),
+            const SizedBox(height: 16),
+            TextField(
+                controller: duration,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: '时长（未知留空）', suffixText: '分钟'),
+                onChanged: (_) => changedParameters()),
+            const SizedBox(height: 16),
+            TextField(
+                controller: calories,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                    labelText: '消耗（未知留空）', suffixText: 'kcal'),
+                onChanged: (_) => dirty = true),
+            if (clearedEstimate)
+              const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text('运动参数已改变，原估算已清空。可填写设备读数，或稍后通过 AI 补充。')),
+            const SizedBox(height: 16),
+            TextField(
+                controller: distance,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration:
+                    const InputDecoration(labelText: '距离（可选）', suffixText: '米'),
+                onChanged: (_) => dirty = true),
+            const SizedBox(height: 16),
+            TextField(
+                controller: intensity,
+                decoration: const InputDecoration(
+                    labelText: '强度（可选）', hintText: '如：轻松、中等、快速'),
+                onChanged: (_) => changedParameters()),
+            const SizedBox(height: 16),
+            TextField(
+                controller: note,
+                decoration: const InputDecoration(labelText: '备注（可选）'),
+                onChanged: (_) => dirty = true),
+            DateTimeFields(
+                date: date,
+                time: time,
+                onChanged: (d, t) => setState(() {
+                      if (d != date) changedParameters();
+                      date = d;
+                      time = t;
+                      dirty = true;
+                    })),
+            const SizedBox(height: 24),
+            FilledButton(
+                onPressed: busy ? null : () => perform(context, save),
+                child: Text(busy ? '保存中…' : '保存运动')),
+            const SizedBox(height: 24),
+          ])));
 }
 
 class _WeightEditorState extends State<WeightEditor> {

@@ -103,16 +103,51 @@ class BackupService {
         'food-journal-${today()}${password.isEmpty ? '.json' : '.enc.json'}');
   }
 
-  Future<String?> exportCsv(bool weights) async {
-    final rows = weights
-        ? await records.db.query('weight_records',
+  Future<String?> exportCsv(bool weights, {bool exercises = false}) async {
+    final rows = exercises
+        ? await records.db.query('exercise_records',
             where: 'deleted_at_ms IS NULL',
             orderBy: 'local_date,local_time,created_at_ms')
-        : await records.db.rawQuery(
-            '''SELECT f.*,m.local_date,m.local_time,m.meal_type FROM food_items f JOIN meals m ON f.meal_id=m.id
+        : weights
+            ? await records.db.query('weight_records',
+                where: 'deleted_at_ms IS NULL',
+                orderBy: 'local_date,local_time,created_at_ms')
+            : await records.db.rawQuery(
+                '''SELECT f.*,m.local_date,m.local_time,m.meal_type FROM food_items f JOIN meals m ON f.meal_id=m.id
       WHERE f.deleted_at_ms IS NULL AND m.deleted_at_ms IS NULL ORDER BY m.local_date,m.local_time,f.created_at_ms''');
     final lines = <List<dynamic>>[];
-    if (weights) {
+    if (exercises) {
+      lines.add([
+        '日期',
+        '时间',
+        '运动',
+        '时长_分钟',
+        '距离_米',
+        '强度',
+        '消耗_kcal',
+        '消耗来源',
+        '估算依据',
+        '原描述',
+        '备注'
+      ]);
+      for (final row in rows) {
+        lines.add([
+          row['local_date'],
+          row['local_time'],
+          row['name'],
+          row['duration_minutes'],
+          row['distance_meters'],
+          row['intensity'],
+          row['calories_kcal'],
+          sources[row['calories_source']],
+          row['calories_source'] == 'unknown'
+              ? null
+              : row['calories_basis_json'],
+          row['raw_description'],
+          row['note']
+        ]);
+      }
+    } else if (weights) {
       lines.add(['日期', '时间', '原始数值', '原单位', '统一公斤']);
       for (final row in rows) {
         lines.add([
@@ -152,8 +187,9 @@ class BackupService {
       }
     }
     final content = lines.map((line) => line.map(_csv).join(',')).join('\r\n');
-    return _save([0xef, 0xbb, 0xbf, ...utf8.encode(content)],
-        '${weights ? '体重' : '饮食'}-${today()}.csv');
+    return _save(
+        [0xef, 0xbb, 0xbf, ...utf8.encode(content)],
+        '${exercises ? '运动' : weights ? '体重' : '饮食'}-${today()}.csv');
   }
 
   String _csv(dynamic value) {
@@ -280,9 +316,17 @@ class BackupService {
     require(
         data['format'] == 'food-journal-backup' &&
             data['format_version'] == 1 &&
-            [1, 2, AppDatabase.schemaVersion]
+            [1, 2, 3, AppDatabase.schemaVersion]
                 .contains(data['database_schema_version']),
         '不支持的备份格式或数据库版本');
+    if ((data['database_schema_version'] as int) < 4) {
+      require(
+          data['exercise_records'] == null ||
+              data['exercise_records'] is List &&
+                  (data['exercise_records'] as List).isEmpty,
+          '运动数据与备份版本不一致');
+      data['exercise_records'] = <Json>[];
+    }
     require(
         data['preferences'] is Map &&
             data['exported_at'] is String &&
@@ -363,7 +407,7 @@ class BackupService {
           if (RecordRepository.entityTables.contains(table)) {
             require(row['version'] is int && row['version'] >= 1, '记录版本不正确');
           }
-          if (['meals', 'weight_records'].contains(table)) {
+          if (['meals', 'weight_records', 'exercise_records'].contains(table)) {
             validateDate(
                 row['local_date'] as String, row['local_time'] as String?);
             require(
@@ -608,7 +652,7 @@ class BackupService {
             '操作前后快照不完整');
       }
     }
-    if (table == 'meals' || table == 'weight_records') {
+    if (['meals', 'weight_records', 'exercise_records'].contains(table)) {
       if (table == 'meals') {
         require(mealNames.containsKey(row['meal_type']), '快照餐别不正确');
       }
@@ -634,6 +678,14 @@ class BackupService {
                   row['input_value'] as String, row['input_unit'] as String) ==
               row['grams'],
           '快照体重换算不一致');
+    }
+    if (table == 'exercise_records') {
+      validateStoredExercise(row);
+      if (row['calories_source'] == 'ai') {
+        final basis = jsonMap(row['calories_basis_json'] as String);
+        require(ids['weight_records']!.contains(basis['weight_record_id']),
+            '运动估算引用的体重缺失');
+      }
     }
     if (table == 'food_items') {
       require(

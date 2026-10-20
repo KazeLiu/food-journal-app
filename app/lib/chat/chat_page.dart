@@ -328,8 +328,11 @@ class _ChatPageState extends State<ChatPage> {
                   title: const Text('引用回复'),
                   onTap: () => Navigator.pop(context, 'quote')),
               if (message['record_refs_json'] != null &&
-                  jsonRows(message['record_refs_json'] as String).any(
-                      (r) => ['meals', 'weight_records'].contains(r['table'])))
+                  jsonRows(message['record_refs_json'] as String).any((r) => [
+                        'meals',
+                        'weight_records',
+                        'exercise_records'
+                      ].contains(r['table'])))
                 ListTile(
                     leading: const Icon(Icons.edit_note),
                     title: const Text('纠正关联记录'),
@@ -353,7 +356,8 @@ class _ChatPageState extends State<ChatPage> {
         _saveDraft();
       case 'correct':
         final refs = jsonRows(message['record_refs_json'] as String)
-            .where((r) => ['meals', 'weight_records'].contains(r['table']))
+            .where((r) => ['meals', 'weight_records', 'exercise_records']
+                .contains(r['table']))
             .toList();
         final unique = <String, Json>{};
         for (final ref in refs) {
@@ -380,7 +384,9 @@ class _ChatPageState extends State<ChatPage> {
                       return ListTile(
                           title: Text(r['table'] == 'meals'
                               ? '${mealNames[current['meal_type']]} · ${current['raw_description']}'
-                              : '体重 · ${current['input_value']} ${current['input_unit'] == 'jin' ? '斤' : '公斤'}'),
+                              : r['table'] == 'exercise_records'
+                                  ? '运动 · ${current['name']}'
+                                  : '体重 · ${current['input_value']} ${current['input_unit'] == 'jin' ? '斤' : '公斤'}'),
                           subtitle: Text(current['local_date'] as String),
                           onTap: () => Navigator.pop(context, r));
                     }),
@@ -757,7 +763,8 @@ class _ChatPageState extends State<ChatPage> {
                                           [
                                             'meals',
                                             'food_items',
-                                            'weight_records'
+                                            'weight_records',
+                                            'exercise_records'
                                           ].contains(
                                               sentContext['record_table'])
                                       ? () => openRecord(
@@ -888,7 +895,8 @@ class _ChatPageState extends State<ChatPage> {
     final seen = <String>{};
     return refs
         .where((r) =>
-            ['meals', 'weight_records'].contains(r['table']) &&
+            ['meals', 'weight_records', 'exercise_records']
+                .contains(r['table']) &&
             seen.add(r['id'] as String))
         .map((r) => Padding(
             padding: const EdgeInsets.only(top: 8),
@@ -997,7 +1005,7 @@ class _ChatPageState extends State<ChatPage> {
                   keyboardType: TextInputType.multiline,
                   textInputAction: TextInputAction.newline,
                   decoration: const InputDecoration(
-                      hintText: '说说刚刚吃了什么……',
+                      hintText: '说说饮食或运动……',
                       contentPadding: EdgeInsets.all(14)),
                   onChanged: (_) => _saveDraft())),
           const SizedBox(width: 12),
@@ -1062,6 +1070,33 @@ class OperationPanel extends StatelessWidget {
         await openMealEditor(context, s,
             actionId: action['id'] as String,
             originalText: input['body_text'] as String);
+      }
+    } else if (type == 'create_exercise') {
+      if (context.mounted) {
+        await openExerciseEditor(context, s,
+            actionId: action['id'] as String,
+            date: payload['local_date'] as String?,
+            originalText: input['body_text'] as String);
+      }
+    } else if (['update_exercise', 'delete_exercise'].contains(type)) {
+      final current =
+          await s.records.row('exercise_records', payload['id'] as String);
+      require(current != null, '这次运动已删除，请重新说明');
+      if (!context.mounted) return;
+      if (type == 'delete_exercise') {
+        if (await confirm(context, '删除这次运动？',
+            '${current!['local_date']} · ${current['name']}')) {
+          await s.chat.manualSave(
+              actionId: action['id'] as String,
+              save: () => s.committer.local({
+                    'type': type,
+                    'id': current['id'],
+                    'expected_version': current['version']
+                  }, actionId: action['id'] as String));
+        }
+      } else {
+        await openExerciseEditor(context, s,
+            exercise: current, actionId: action['id'] as String);
       }
     } else if (type == 'create_weight') {
       if (context.mounted) {
@@ -1187,9 +1222,38 @@ class OperationPanel extends StatelessWidget {
                               final input =
                                   await s.records.inputFor(operationId);
                               if (!context.mounted) return;
-                              await openMealEditor(context, s,
-                                  originalText: input['body_text'] as String,
-                                  operationId: operationId);
+                              final kind = await showModalBottomSheet<String>(
+                                  context: context,
+                                  builder: (sheet) => SafeArea(
+                                          child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                            ListTile(
+                                                title: const Text('手动记饮食'),
+                                                onTap: () => Navigator.pop(
+                                                    sheet, 'meal')),
+                                            ListTile(
+                                                title: const Text('记录运动'),
+                                                onTap: () => Navigator.pop(
+                                                    sheet, 'exercise')),
+                                            ListTile(
+                                                title: const Text('记录体重'),
+                                                onTap: () => Navigator.pop(
+                                                    sheet, 'weight')),
+                                          ])));
+                              if (!context.mounted) return;
+                              if (kind == 'exercise') {
+                                await openExerciseEditor(context, s,
+                                    originalText: input['body_text'] as String,
+                                    operationId: operationId);
+                              } else if (kind == 'weight') {
+                                await openWeightEditor(context, s,
+                                    operationId: operationId);
+                              } else if (kind == 'meal') {
+                                await openMealEditor(context, s,
+                                    originalText: input['body_text'] as String,
+                                    operationId: operationId);
+                              }
                             }),
                         child: const Text('手动记录')),
                 ]),
@@ -1226,12 +1290,15 @@ class OperationPanel extends StatelessWidget {
                                               (a['type'] as String)
                                                       .contains('weight')
                                                   ? 'weight_records'
-                                                  : [
-                                                      'update_food',
-                                                      'delete_food'
-                                                    ].contains(a['type'])
-                                                      ? 'food_items'
-                                                      : 'meals',
+                                                  : (a['type'] as String)
+                                                          .contains('exercise')
+                                                      ? 'exercise_records'
+                                                      : [
+                                                          'update_food',
+                                                          'delete_food'
+                                                        ].contains(a['type'])
+                                                          ? 'food_items'
+                                                          : 'meals',
                                               (payload['id'] ??
                                                       payload['meal_id'])
                                                   as String),
@@ -1241,6 +1308,15 @@ class OperationPanel extends StatelessWidget {
                                         TextButton(
                                             onPressed: () => onAnswer(a),
                                             child: const Text('回答这个问题')),
+                                      if (a['status'] == 'waiting_input' &&
+                                          payload['optional_follow_up'] == true)
+                                        TextButton(
+                                            onPressed: () => perform(
+                                                context,
+                                                () => s.chat
+                                                    .dismissExerciseFollowUp(
+                                                        a['id'] as String)),
+                                            child: const Text('暂不补充')),
                                       if (a['status'] == 'waiting_confirmation')
                                         TextButton(
                                             onPressed: () => perform(

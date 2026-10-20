@@ -68,9 +68,9 @@ D01 直接编辑、D02 长按引用、D03 两阶段图片均已确认并实现�
 - 时间使用 local_date（发生日期权威）、local_time（HH:mm、中文时段或 null），另存 created_at_ms / updated_at_ms。支持的时段为凌晨、早上、上午、中午、下午、傍晚、晚上、深夜。只有 HH:mm 才计算 occurred_at_ms 和 utc_offset_minutes；时段或仅日期时两者为 null，不把时段换成精确发生时间戳。
 - 今天未给时间的 AI 新增记录在 savePlan 时采用 operation 中固定的发送时刻并保存到计划，重试仍使用原值。历史日期无时间则保留 null；手动新增在表单打开时预填当前时间，手动清空与既有记录编辑不受 AI 默认规则影响。已有 null 时间不批量回填，展示时只显示日期。
 
-## 5. SQLite schema 3
+## 5. SQLite schema 4
 
-以下为当前 schema 3 建库契约，由 core/database.dart 创建。schema 1 原地升级给 chat_messages 增加可空的 model_reply_text、receipt_text 和 reasoning_text；schema 2 升级只加 reasoning_text。保留旧 body_text 与全部业务记录，不回填旧思考。reasoning_text 独立于正文和搜索内容，普通历史与引用上下文均不发送该字段。启用 `PRAGMA foreign_keys = ON`，应用写入边界验证枚举、JSON 结构和数值配套。
+以下为 schema 4 沿用的原有表契约；新增运动表与原地迁移见第 8 节，由 core/database.dart 创建。schema 1 原地升级给 chat_messages 增加可空的 model_reply_text、receipt_text 和 reasoning_text；schema 2 升级只加 reasoning_text。保留旧 body_text 与全部业务记录，不回填旧思考。reasoning_text 独立于正文和搜索内容，普通历史与引用上下文均不发送该字段。启用 `PRAGMA foreign_keys = ON`，应用写入边界验证枚举、JSON 结构和数值配套。
 
 ```sql
 CREATE TABLE operations (
@@ -310,13 +310,28 @@ WHERE m.local_date=? AND m.deleted_at_ms IS NULL AND f.deleted_at_ms IS NULL;
 
 恢复整库与清除数据有专用事务边界，见 05。schema 失败保留文件并提示，不删库重建；未来升级写明确迁移，不默认支持更高版本降级。
 
-## 8. 运动数据扩展草案（R17，待确认）
+## 8. 运动数据（R17）
 
-当前 schema 3 不含运动实体，本节不新增建表 SQL 或迁移。产品范围见 01 第 11 节；09 的细节确认后，再确定字段、版本与迁移方案。
+schema 4 新增独立 exercise_records 及日期索引，不修改 meals / food_items / weight_records 的语义。低于 schema 4 时原地增表，新建库共用相同 SQL；不删除或重建旧表。
 
-- 建议新增独立运动实体，保存运动名称、原描述、发生日期 / 可空时间、可空时长、可空消耗、来源与估算依据。距离、强度和估算所用体重是否结构化保存，随 D07 的估算口径确定，不引入无依据的必填资料。
+- 运动保存名称、原描述、发生日期 / 可空时间、可空 duration_minutes（分钟）、distance_meters（米）、intensity、calories_kcal、calories_source（unknown / user / ai）、calories_basis_json 与备注。未知不是 0，名称必填，时长有值时必须大于 0。
 - 复用客户端 ID、来源消息、创建子操作、version、软删除和前后快照约定；运动不写入 meals 或 food_items，不占餐数，不改变饮食营养的含义。
 - 时间沿用第 4 节的固定参考时间和时段规则，不把句子中的先后顺序换算成具体时刻；时长未知与实际为 0 分开。
 - 日汇总分别读取饮食和运动，消耗另计已知值与缺失数；不能将多条运动与多条食物直接 JOIN 后相加造成重复。
-- 推荐由现有 RecordRepository、ActionCommitter 和 BackupService 扩展承担查询、提交、撤销和备份，不新增并行账本或通用运动平台。
-- 开发时补充原地迁移及旧备份兼容，保留已有饮食、体重、聊天和操作关系；新备份中的运动数据不得被旧版静默丢弃。
+- RecordRepository、ActionCommitter 和 BackupService 扩展承担查询、提交、撤销和备份。businessTables / entityTables 纳入运动，完整备份、安全副本、恢复和清除共用原有表顺序。
+- AI 估算读取运动日当天或此前最近体重，事务内核对真实 ID / version / grams。calories_basis_json 保存 note、met、weight_record_id、weight_version、weight_grams、weight_local_date、duration_minutes、intensity 与 method 快照。后续称重不会重算运动，历史估算保留当时依据。
+- create_exercise 提交成功且有可选问题时，同事务创建独立 waiting_input 的 update_exercise，带已生成 ID 和当前版本；新增保持 committed。补充不是重做新增，版本不符或记录不存在时拒绝旧回答。
+
+```sql
+CREATE TABLE exercise_records (
+ id TEXT PRIMARY KEY, origin_action_id TEXT NOT NULL REFERENCES operation_actions(id), client_ref TEXT NOT NULL,
+ source_message_id TEXT REFERENCES chat_messages(id) ON DELETE SET NULL, local_date TEXT NOT NULL,
+ local_time TEXT, occurred_at_ms INTEGER, utc_offset_minutes INTEGER,
+ name TEXT NOT NULL CHECK(length(trim(name))>0), duration_minutes REAL CHECK(duration_minutes>0),
+ distance_meters REAL CHECK(distance_meters>=0), intensity TEXT,
+ calories_kcal INTEGER CHECK(calories_kcal>=0), calories_source TEXT NOT NULL CHECK(calories_source IN ('unknown','user','ai')),
+ calories_basis_json TEXT NOT NULL, raw_description TEXT NOT NULL, note TEXT,
+ version INTEGER NOT NULL DEFAULT 1 CHECK(version>=1), deleted_at_ms INTEGER,
+ created_at_ms INTEGER NOT NULL, updated_at_ms INTEGER NOT NULL, UNIQUE(origin_action_id,client_ref));
+CREATE INDEX idx_exercise_day ON exercise_records(local_date,deleted_at_ms,local_time);
+```

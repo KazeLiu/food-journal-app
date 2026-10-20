@@ -121,7 +121,7 @@ class _JournalHomeState extends State<JournalHome> with WidgetsBindingObserver {
                               style: Theme.of(context).textTheme.headlineSmall),
                           const SizedBox(height: 12),
                           const Text(
-                              '发一句话或一张照片，我来粗估热量和营养。日历里能回看，体重也能随手记。少记一天也没关系。'),
+                              '发一句话或一张照片，我来整理饮食和运动。日历里能回看，体重也能随手记。少记一天也没关系。'),
                           const SizedBox(height: 16),
                           const Text('你习惯的体重单位'),
                           SegmentedButton<String>(

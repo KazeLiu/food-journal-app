@@ -40,7 +40,9 @@ class _CalendarPageState extends State<CalendarPage> {
         'marks': await s.records.monthMarks(month),
         'totals': await s.records.totals(s.day.value),
         'meals': await s.records.meals(s.day.value),
-        'weights': await s.records.weights(date: s.day.value, limit: null)
+        'weights': await s.records.weights(date: s.day.value, limit: null),
+        'exercises': await s.records.exercises(s.day.value),
+        'exercise_totals': await s.records.exerciseTotals(s.day.value)
       };
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -62,6 +64,9 @@ class _CalendarPageState extends State<CalendarPage> {
                       final totals = data['totals'] as Json;
                       final dayMeals = (data['meals'] as List).cast<Json>();
                       final weights = (data['weights'] as List).cast<Json>();
+                      final exercises =
+                          (data['exercises'] as List).cast<Json>();
+                      final exerciseTotals = data['exercise_totals'] as Json;
                       return ListView(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                           children: [
@@ -159,9 +164,12 @@ class _CalendarPageState extends State<CalendarPage> {
                                                   marks['food']!.contains(key);
                                               final weight = marks['weight']!
                                                   .contains(key);
+                                              final exercise =
+                                                  marks['exercise']!
+                                                      .contains(key);
                                               return Semantics(
                                                   label:
-                                                      '$key${isToday ? ' 今天' : ''}${food ? ' 有饮食' : ''}${weight ? ' 有体重' : ''}',
+                                                      '$key${isToday ? ' 今天' : ''}${food ? ' 有饮食' : ''}${weight ? ' 有体重' : ''}${exercise ? ' 有运动' : ''}',
                                                   selected: selected,
                                                   button: true,
                                                   child: InkWell(
@@ -172,8 +180,8 @@ class _CalendarPageState extends State<CalendarPage> {
                                                           s.day.value = key,
                                                       child: Container(
                                                           margin:
-                                                              const EdgeInsets.all(
-                                                                  2),
+                                                              const EdgeInsets
+                                                                  .all(2),
                                                           decoration: BoxDecoration(
                                                               borderRadius:
                                                                   BorderRadius.circular(
@@ -212,7 +220,11 @@ class _CalendarPageState extends State<CalendarPage> {
                                                                             0xFFD78D72)),
                                                                       if (weight)
                                                                         _dot(const Color(
-                                                                            0xFF9A85C4))
+                                                                            0xFF9A85C4)),
+                                                                      if (exercise)
+                                                                        _dot(Theme.of(context)
+                                                                            .colorScheme
+                                                                            .tertiary)
                                                                     ])
                                                               ]))));
                                             }),
@@ -226,7 +238,10 @@ class _CalendarPageState extends State<CalendarPage> {
                                   const Text('饮食'),
                                   const SizedBox(width: 24),
                                   _dot(const Color(0xFF9A85C4)),
-                                  const Text('体重')
+                                  const Text('体重'),
+                                  const SizedBox(width: 24),
+                                  _dot(Theme.of(context).colorScheme.tertiary),
+                                  const Text('运动')
                                 ]),
                             SectionTitle(s.day.value,
                                 trailing: PopupMenuButton<String>(
@@ -235,6 +250,9 @@ class _CalendarPageState extends State<CalendarPage> {
                                     onSelected: (value) {
                                       if (value == 'meal') {
                                         openMealEditor(context, s,
+                                            date: s.day.value);
+                                      } else if (value == 'exercise') {
+                                        openExerciseEditor(context, s,
                                             date: s.day.value);
                                       } else {
                                         openWeightEditor(context, s,
@@ -247,9 +265,14 @@ class _CalendarPageState extends State<CalendarPage> {
                                               child: Text('手动记饮食')),
                                           PopupMenuItem(
                                               value: 'weight',
-                                              child: Text('记录体重'))
+                                              child: Text('记录体重')),
+                                          PopupMenuItem(
+                                              value: 'exercise',
+                                              child: Text('记录运动'))
                                         ])),
-                            if (dayMeals.isEmpty && weights.isEmpty)
+                            if (dayMeals.isEmpty &&
+                                weights.isEmpty &&
+                                exercises.isEmpty)
                               const EmptyView('这一天没有记录，没关系'),
                             if (dayMeals.isNotEmpty) ...[
                               Text(calorieText(totals),
@@ -273,6 +296,29 @@ class _CalendarPageState extends State<CalendarPage> {
                                               actionId: m['origin_action_id']
                                                   as String))),
                                 ]
+                            ],
+                            if (exercises.isNotEmpty) ...[
+                              const SectionTitle('当天的运动'),
+                              Text(
+                                  '${exerciseTotals['exercise_count']} 次运动 · ${exerciseTotals['missing_duration'] == exerciseTotals['exercise_count'] ? '时长未知' : '已记录 ${numberText(exerciseTotals['duration_minutes'] as num)} 分钟'}'),
+                              Text(exerciseTotals['missing_calories'] ==
+                                      exerciseTotals['exercise_count']
+                                  ? '运动消耗未知'
+                                  : '已知运动消耗合计 ${exerciseTotals['calories_kcal']} kcal（含估算）'),
+                              if (exerciseTotals['missing_duration'] > 0 ||
+                                  exerciseTotals['missing_calories'] > 0)
+                                Text(
+                                    '${exerciseTotals['missing_duration']} 次时长未知 · ${exerciseTotals['missing_calories']} 次消耗未知',
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall),
+                              const SizedBox(height: 12),
+                              ...exercises.map((e) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: RecordCard(s,
+                                      table: 'exercise_records',
+                                      id: e['id'] as String,
+                                      actionId:
+                                          e['origin_action_id'] as String))),
                             ],
                             if (weights.isNotEmpty) ...[
                               const SectionTitle('当天的每次体重'),

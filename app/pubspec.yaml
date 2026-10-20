@@ -1,7 +1,7 @@
 name: food_journal
 description: 私人的饮食、营养与体重记录
 publish_to: 'none'
-version: 0.1.17+18
+version: 0.1.18+19
 
 environment:
   sdk: '>=3.3.2 <4.0.0'

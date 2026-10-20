@@ -16,9 +16,11 @@ class ActionPreview extends StatelessWidget {
         ? 'operation_actions'
         : type.contains('weight')
             ? 'weight_records'
-            : type.endsWith('food')
-                ? 'food_items'
-                : 'meals';
+            : type.contains('exercise')
+                ? 'exercise_records'
+                : type.endsWith('food')
+                    ? 'food_items'
+                    : 'meals';
     return await s.records.row(table, id) ?? {};
   }
 
@@ -52,7 +54,12 @@ class ActionPreview extends StatelessWidget {
       'local_time': '时刻',
       'input_value': '体重',
       'input_unit': '单位',
-      'meal_type': '餐别'
+      'meal_type': '餐别',
+      'duration_minutes': '时长（分钟）',
+      'distance_meters': '距离（米）',
+      'intensity': '强度',
+      'calories_kcal': '运动消耗（kcal）',
+      'calories_source': '消耗来源'
     };
     for (final entry in labels.entries) {
       if (!patch.containsKey(entry.key)) continue;
@@ -62,7 +69,8 @@ class ActionPreview extends StatelessWidget {
           : entry.key == 'input_unit'
               ? (value == 'jin' ? '斤' : '公斤')
               : value;
-      lines.add('${entry.value} → ${shown ?? '未注明'}');
+      lines.add(
+          '${entry.key == 'name' && (a['type'] as String).contains('exercise') ? '运动' : entry.value} → ${shown ?? '未注明'}');
     }
     if (patch['nutrition'] is Map) {
       final nutrition = patch['nutrition'] as Map;

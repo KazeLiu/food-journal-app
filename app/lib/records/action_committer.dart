@@ -24,13 +24,13 @@ class ActionCommitter {
       if (operation['kind'] == 'chat') {
         final reference = jsonMap(operation['reference_time_json'] as String);
         actions = actions
-            .map((input) =>
-                ['create_meal', 'create_weight'].contains(input['type']) &&
-                        input['state'] != 'clarify' &&
-                        input['local_date'] == reference['local_date'] &&
-                        input['local_time'] == null
-                    ? {...input, 'local_time': reference['local_time']}
-                    : input)
+            .map((input) => ['create_meal', 'create_weight', 'create_exercise']
+                        .contains(input['type']) &&
+                    input['state'] != 'clarify' &&
+                    input['local_date'] == reference['local_date'] &&
+                    input['local_time'] == null
+                ? {...input, 'local_time': reference['local_time']}
+                : input)
             .toList();
       }
       var updated = false;
@@ -266,6 +266,32 @@ class ActionCommitter {
           },
           where: 'id=?',
           whereArgs: [actionId]);
+      if (payload['type'] == 'create_exercise' &&
+          payload['follow_up_question'] is String) {
+        final exercise =
+            after.singleWhere((e) => e['table'] == 'exercise_records')['row']
+                as Json;
+        await tx.insert('operation_actions', {
+          'id': newId(),
+          'operation_id': action['operation_id'],
+          'action_key': 'exercise_follow_up_$actionId',
+          'type': 'update_exercise',
+          'status': 'waiting_input',
+          'payload_json': jsonEncode({
+            'type': 'update_exercise',
+            'state': 'clarify',
+            'id': exercise['id'],
+            'expected_version': exercise['version'],
+            'question': payload['follow_up_question'],
+            'optional_follow_up': true,
+            'candidates': [
+              {'type': 'exercise', 'id': exercise['id']}
+            ]
+          }),
+          'created_at_ms': nowMs(),
+          'updated_at_ms': nowMs()
+        });
+      }
       if (acceptedProposalId != null) {
         await tx.update('consent_proposals',
             {'status': 'accepted', 'updated_at_ms': nowMs()},
@@ -304,8 +330,11 @@ class ActionCommitter {
 
   Future<void> settle(String operationId) async {
     final actions = await records.actions(operationId);
-    final complete =
-        actions.every((a) => ['committed', 'undone'].contains(a['status']));
+    final complete = actions.every((a) =>
+        ['committed', 'undone'].contains(a['status']) ||
+        ['waiting_input', 'cancelled'].contains(a['status']) &&
+            a['payload_json'] != null &&
+            jsonMap(a['payload_json'] as String)['optional_follow_up'] == true);
     final partial =
         actions.any((a) => ['committed', 'undone'].contains(a['status']));
     final status = complete
@@ -524,6 +553,62 @@ class ActionCommitter {
               a['input_value'] as String, a['input_unit'] as String),
           'raw_description': a['raw_description']
         });
+      case 'create_exercise':
+        await m.insert('exercise_records', {
+          ...m.origin(a['client_ref'] as String),
+          'id': newId(),
+          ...timeColumns(a, m.reference),
+          ...await _exerciseValues(m, a),
+          'raw_description': a['raw_description']
+        });
+      case 'update_exercise':
+        final row = await m.check(
+            'exercise_records', a['id'] as String, a['expected_version']);
+        final patch = a['patch'] as Json;
+        require(
+            patch.isNotEmpty &&
+                patch.keys.every(
+                    [...exerciseFields, 'local_date', 'local_time'].contains),
+            '不支持的运动修改字段');
+        final merged = {
+          ...row,
+          'calories_basis': jsonMap(row['calories_basis_json'] as String),
+          ...patch
+        };
+        if (patch.containsKey('local_date') && !patch.containsKey('local_time'))
+          merged['local_time'] = null;
+        final estimateChanged = [
+          'name',
+          'duration_minutes',
+          'intensity',
+          'local_date'
+        ].any((f) => patch.containsKey(f) && patch[f] != row[f]);
+        if (row['calories_source'] == 'ai' && estimateChanged) {
+          require(
+              patch.containsKey('calories_kcal') &&
+                  patch.containsKey('calories_source') &&
+                  patch.containsKey('calories_basis'),
+              '运动参数已改变，请重新估算消耗或清空');
+        }
+        await m.update('exercise_records', row['id'] as String, {
+          if (patch.containsKey('local_date') ||
+              patch.containsKey('local_time'))
+            ...timeColumns(merged, m.reference),
+          ...await _exerciseValues(m, merged,
+              verifyWeight: estimateChanged ||
+                  patch.containsKey('calories_kcal') &&
+                      patch['calories_kcal'] != row['calories_kcal'] ||
+                  patch.containsKey('calories_source') &&
+                      patch['calories_source'] != row['calories_source'] ||
+                  patch.containsKey('calories_basis') &&
+                      jsonEncode(patch['calories_basis']) !=
+                          row['calories_basis_json'])
+        });
+      case 'delete_exercise':
+        await m.check(
+            'exercise_records', a['id'] as String, a['expected_version']);
+        await m.update(
+            'exercise_records', a['id'] as String, {'deleted_at_ms': nowMs()});
       case 'edit_meal':
         final meal =
             await m.check('meals', a['id'] as String, a['expected_version']);
@@ -829,6 +914,55 @@ class ActionCommitter {
       ...values,
       'nutrition_sources_json': jsonEncode(source),
       'nutrition_basis_json': jsonEncode(basis)
+    };
+  }
+
+  Future<Json> _exerciseValues(_Mutation m, Json input,
+      {bool verifyWeight = true}) async {
+    validateExercise(input);
+    var calories = input['calories_kcal'];
+    Json basis =
+        Map<String, dynamic>.from(input['calories_basis'] as Map? ?? {});
+    if (input['calories_source'] == 'ai' && verifyWeight) {
+      final weight = await records.exerciseWeight(input['local_date'] as String,
+          executor: m.tx);
+      require(
+          weight != null &&
+              weight['id'] == basis['weight_record_id'] &&
+              weight['version'] == basis['weight_version'] &&
+              weight['grams'] == basis['weight_grams'],
+          '参考体重已变化或不属于运动日及此前最近一次，请重新估算',
+          'conflict');
+      calories = ((basis['met'] as num) *
+              (weight!['grams'] as int) /
+              1000 *
+              (input['duration_minutes'] as num) /
+              60)
+          .round();
+      basis = {
+        ...basis,
+        'method': 'MET × kg × hours（含静息消耗）',
+        'duration_minutes': input['duration_minutes'],
+        'intensity': input['intensity'],
+        'weight_local_date': weight['local_date']
+      };
+    }
+    return {
+      for (final field in [
+        'name',
+        'duration_minutes',
+        'distance_meters',
+        'intensity',
+        'note'
+      ])
+        field: input[field],
+      'calories_kcal': calories,
+      'calories_source': input['calories_source'],
+      'calories_basis_json': jsonEncode(input['calories_source'] == 'unknown'
+          ? {}
+          : basis.isEmpty
+              ? {'note': '用户明确提供'}
+              : basis)
     };
   }
 

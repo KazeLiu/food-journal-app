@@ -94,16 +94,18 @@ class _DataPageState extends State<DataPage> {
       data = await widget.s.backup.pickBackup(pass);
     }
     if (data == null || !mounted) return;
-    final dates = (data['meals'] as List)
-        .map((m) => m['local_date'] as String)
-        .toList()
+    final dates = [
+      ...data['meals'] as List,
+      ...data['weight_records'] as List,
+      ...data['exercise_records'] as List
+    ].map((m) => m['local_date'] as String).toList()
       ..sort();
     if (!await confirm(
         context,
         '用这份备份替换本机记录？',
         '备份时间：${data['exported_at']}\n'
-            '${dates.isEmpty ? '没有饮食记录' : '${dates.first} 至 ${dates.last}'}\n'
-            '${(data['chat_messages'] as List).length} 条聊天，${(data['food_items'] as List).length} 项食物，${(data['weight_records'] as List).length} 次体重，${(data['food_library'] as List).length} 份食品资料，${(data['ai_memories'] as List).length} 项记忆。\n\n'
+            '${dates.isEmpty ? '没有业务记录' : '${dates.first} 至 ${dates.last}'}\n'
+            '${(data['chat_messages'] as List).length} 条聊天，${(data['food_items'] as List).length} 项食物，${(data['weight_records'] as List).length} 次体重，${(data['exercise_records'] as List).length} 次运动，${(data['food_library'] as List).length} 份食品资料，${(data['ai_memories'] as List).length} 项记忆。\n\n'
             '整库替换，不合并，当前聊天的图片预览会清除且无法从备份找回。当前 AI 地址、模型与 Key 保持不变。替换前会保存一份不含图片的内部安全副本。',
         accept: '确认替换')) return;
     await widget.s.backup.restore(data, fromSafety: safety);
@@ -148,6 +150,20 @@ class _DataPageState extends State<DataPage> {
                           }
                         })),
             child: const Text('导出体重 CSV')),
+        OutlinedButton.icon(
+            onPressed: busy
+                ? null
+                : () => perform(
+                    context,
+                    () => _work(() async {
+                          final path = await widget.s.backup
+                              .exportCsv(false, exercises: true);
+                          if (context.mounted && path != null)
+                            showNotice(context, '运动 CSV 已保存');
+                        })),
+            icon: const Icon(Icons.directions_run_outlined),
+            label: const Text('导出运动 CSV')),
+        const SizedBox(height: 16),
         const SectionTitle('完整备份与恢复'),
         const Text(
             '包含记录、聊天、操作历史、食品资料和授权记忆，不包含 Key、AI 连接配置或图片预览。恢复会替换当前聊天，本机预览也会清除。',

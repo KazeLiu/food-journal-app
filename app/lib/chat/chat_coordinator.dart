@@ -61,6 +61,23 @@ class ChatCoordinator extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> dismissExerciseFollowUp(String id) async {
+    final action = await records.row('operation_actions', id);
+    require(
+        action != null &&
+            action['status'] == 'waiting_input' &&
+            action['payload_json'] != null &&
+            jsonMap(action['payload_json'] as String)['optional_follow_up'] ==
+                true,
+        '这项补充已经处理');
+    await records.db.update(
+        'operation_actions', {'status': 'cancelled', 'updated_at_ms': nowMs()},
+        where: "id=? AND status='waiting_input'", whereArgs: [id]);
+    if (answeringActionId == id) answeringActionId = null;
+    await committer.settle(action!['operation_id'] as String);
+    await _receipt(action['operation_id'] as String, '');
+  }
+
   Future<T> manualSave<T>(
       {String? actionId,
       String? operationId,
@@ -397,7 +414,25 @@ class ChatCoordinator extends ChangeNotifier {
         final target = await records.row('operation_actions', targetAction);
         require(target != null && target['status'] == 'waiting_input',
             '原问题已处理或失效，请重新说明要记录什么');
-        rootId = target!['operation_id'] as String;
+        final targetPayload = jsonMap(target!['payload_json'] as String);
+        if (targetPayload['optional_follow_up'] == true) {
+          final current = await records.row(
+              'exercise_records', targetPayload['id'] as String);
+          if (current == null ||
+              current['version'] != targetPayload['expected_version']) {
+            await records.db.update('operation_actions',
+                {'status': 'cancelled', 'updated_at_ms': nowMs()},
+                where: 'id=?', whereArgs: [targetAction]);
+            await committer.settle(target['operation_id'] as String);
+            await _receipt(target['operation_id'] as String, '');
+          }
+          require(
+              current != null &&
+                  current['version'] == targetPayload['expected_version'],
+              '这次运动已修改、删除或撤销，请打开当前记录重新补充',
+              'conflict');
+        }
+        rootId = target['operation_id'] as String;
         modelOperation = (await records.row('operations', rootId))!;
         final original = await records.inputFor(rootId);
         retryScope = [target];
@@ -605,7 +640,8 @@ class ChatCoordinator extends ChangeNotifier {
               .hasMatch(input['body_text'] as String)) {
         for (final action in actions) {
           if (action['state'] == 'ready' &&
-              !['create_meal', 'create_weight'].contains(action['type'])) {
+              !['create_meal', 'create_weight', 'create_exercise']
+                  .contains(action['type'])) {
             action['state'] = 'confirm';
             action['summary'] = '这次图片输入涉及已有记录，请确认下面的变更。';
           }
@@ -887,7 +923,8 @@ class ChatCoordinator extends ChangeNotifier {
     final suffix = actions.isEmpty
         ? ''
         : '\n${committed > 0 ? '已处理 $committed 项。' : ''}'
-            '${actions.any((a) => a['status'] == 'waiting_input') ? '有事项需要你补充。' : ''}'
+            '${actions.any((a) => a['status'] == 'waiting_input' && (a['payload_json'] == null || jsonMap(a['payload_json'] as String)['optional_follow_up'] != true)) ? '有事项需要你补充。' : ''}'
+            '${actions.any((a) => a['status'] == 'waiting_input' && a['payload_json'] != null && jsonMap(a['payload_json'] as String)['optional_follow_up'] == true) ? '运动信息可稍后补充。' : ''}'
             '${actions.any((a) => a['status'] == 'waiting_confirmation') ? '有变更等待确认。' : ''}'
             '${actions.any((a) => [
                   'failed',

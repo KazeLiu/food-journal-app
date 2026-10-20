@@ -1,6 +1,6 @@
 # AI 减脂伙伴 · Android 工程
 
-私人饮食与体重记录工具，Flutter / Dart + SQLite，无账号或自有服务端。完整范围见根目录 docs/01，当前实现与构建证据见 docs/10。
+私人饮食、运动与体重记录工具，Flutter / Dart + SQLite，无账号或自有服务端。完整范围见根目录 docs/01，当前实现与构建证据见 docs/10。
 
 ## 使用
 
@@ -32,6 +32,8 @@
 
 Key 保存在设备安全存储；业务备份不包含 Key、AI 配置或图片预览。压缩预览随聊天保留，删除聊天或清空数据时清理；导入完整备份也会替换聊天并清除旧预览，替换前保留一份不含图片的应用内部安全副本。旧版已清理的图片无法恢复。
 
+运动可与饮食混合描述，先保存再可选补充；“我的记录 → 日期旁 + → 记录运动”可离线新增。详情支持 AI / 直接编辑、删除和逐项撤销。消耗与饮食分别汇总，未知不写 0；数据管理提供单独运动 CSV，完整备份含运动与历史关系，支持 schema 1–3 旧文件恢复到 schema 4。
+
 ## 构建
 
 已使用 Flutter 3.19.4 / Dart 3.3.2、JDK 17.0.9、Android SDK 34、NDK 25.1.8937393、Gradle 8.2、AGP 8.2.2、Kotlin 1.9.22。依赖以 pubspec.lock 为准；最低 Android 7.0（API 24），compile / target SDK 34。
@@ -46,7 +48,7 @@ flutter build apk --debug --no-pub
 
 本机 Flutter 路径为 D:\FlutterSDK，JDK 为 D:\Java\hold-that-bite-jdk17，Android SDK 为 D:\AndroidSDK。其他环境应配置自己的 Flutter / Java / Android SDK 路径，不复制 local.properties。
 
-产物：build/app/outputs/flutter-apk/app-debug.apk。应用 ID 为 local.foodjournal.app，版本 0.1.17+18。debug 包供个人设备验收；正式发布需要配置独立发布签名，不使用调试签名冒充正式包。
+产物：build/app/outputs/flutter-apk/app-debug.apk。应用 ID 为 local.foodjournal.app，版本 0.1.18+19。debug 包供个人设备验收；正式发布需要配置独立发布签名，不使用调试签名冒充正式包。
 
 ## 重点测试
 

@@ -32,6 +32,7 @@ class RecordRepository extends ChangeNotifier {
     'meals',
     'food_items',
     'weight_records',
+    'exercise_records',
     'food_library',
     'ai_memories'
   ];
@@ -81,6 +82,32 @@ class RecordRepository extends ChangeNotifier {
     };
   }
 
+  Future<List<Json>> exercises(String date) => db.query('exercise_records',
+      where: 'local_date=? AND deleted_at_ms IS NULL',
+      whereArgs: [date],
+      orderBy: 'local_time IS NULL,$_timeOrder,created_at_ms,id');
+
+  Future<Json?> exerciseWeight(String date,
+      {DatabaseExecutor? executor}) async {
+    final rows = await (executor ?? db).query('weight_records',
+        where: 'deleted_at_ms IS NULL AND local_date<=?',
+        whereArgs: [date],
+        orderBy: 'local_date DESC,$_timeOrder DESC,created_at_ms DESC,id DESC',
+        limit: 1);
+    return rows.isEmpty ? null : rows.single;
+  }
+
+  Future<Json> exerciseTotals(String from, [String? to]) async {
+    final rows = await db.rawQuery('''SELECT COUNT(*) exercise_count,
+      SUM(duration_minutes) duration_minutes,
+      SUM(calories_kcal) calories_kcal,
+      COALESCE(SUM(CASE WHEN duration_minutes IS NULL THEN 1 ELSE 0 END),0) missing_duration,
+      COALESCE(SUM(CASE WHEN calories_kcal IS NULL THEN 1 ELSE 0 END),0) missing_calories
+      FROM exercise_records WHERE local_date BETWEEN ? AND ? AND deleted_at_ms IS NULL''',
+        [from, to ?? from]);
+    return rows.single;
+  }
+
   Future<Map<String, Set<String>>> monthMarks(DateTime month) async {
     final start = dateKey(DateTime(month.year, month.month));
     final end = dateKey(DateTime(month.year, month.month + 1, 0));
@@ -91,9 +118,13 @@ class RecordRepository extends ChangeNotifier {
     final weights = await db.rawQuery(
         'SELECT DISTINCT local_date FROM weight_records WHERE local_date BETWEEN ? AND ? AND deleted_at_ms IS NULL',
         [start, end]);
+    final exercises = await db.rawQuery(
+        'SELECT DISTINCT local_date FROM exercise_records WHERE local_date BETWEEN ? AND ? AND deleted_at_ms IS NULL',
+        [start, end]);
     return {
       'food': meals.map((e) => e['local_date'] as String).toSet(),
-      'weight': weights.map((e) => e['local_date'] as String).toSet()
+      'weight': weights.map((e) => e['local_date'] as String).toSet(),
+      'exercise': exercises.map((e) => e['local_date'] as String).toSet()
     };
   }
 
@@ -328,8 +359,8 @@ class RecordRepository extends ChangeNotifier {
       for (var i = 0; i < plan.length; i++) plan[i]['action_key']: i
     };
     final result = rows.map((r) => Map<String, dynamic>.from(r)).toList();
-    result.sort((a, b) =>
-        (order[a['action_key']] ?? -1).compareTo(order[b['action_key']] ?? -1));
+    result.sort((a, b) => (order[a['action_key']] ?? plan.length)
+        .compareTo(order[b['action_key']] ?? plan.length));
     return result;
   }
 
@@ -339,6 +370,20 @@ class RecordRepository extends ChangeNotifier {
       whereArgs: ['%"$id"%', '%"$id"%'],
       orderBy: 'created_at_ms DESC',
       limit: 20);
+
+  Future<bool> canUndo(String actionId) async {
+    final action = await row('operation_actions', actionId);
+    if (action == null ||
+        action['status'] != 'committed' ||
+        action['undo_of_action_id'] != null) return false;
+    for (final entry in jsonRows(action['after_json'] as String)) {
+      final current = await row(entry['table'] as String, entry['id'] as String,
+          includeDeleted: true);
+      if (current == null || current['version'] != entry['row']['version'])
+        return false;
+    }
+    return true;
+  }
 
   Future<void> deleteMessage(String id) async {
     await db.transaction((tx) async {
@@ -426,6 +471,19 @@ class RecordRepository extends ChangeNotifier {
             limit: limit + 1);
       case 'nutrition_totals':
         rows = [await totals(from, to)];
+      case 'find_exercise':
+        rows = await db.query('exercise_records',
+            where:
+                "deleted_at_ms IS NULL AND local_date BETWEEN ? AND ? AND name LIKE ? ESCAPE '\\'",
+            whereArgs: [
+              from,
+              to,
+              '%${escapeLike(query['keyword'] as String? ?? '')}%'
+            ],
+            orderBy: 'local_date DESC,$_timeOrder DESC,created_at_ms DESC',
+            limit: limit + 1);
+      case 'exercise_totals':
+        rows = [await exerciseTotals(from, to)];
       case 'find_library':
         rows = await library(
             keyword: query['keyword'] as String? ?? '',

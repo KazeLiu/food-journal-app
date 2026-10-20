@@ -48,6 +48,9 @@ const recordActionTypes = [
   'create_weight',
   'update_weight',
   'delete_weight',
+  'create_exercise',
+  'update_exercise',
+  'delete_exercise',
   'undo_action'
 ];
 
@@ -88,7 +91,8 @@ Json actionScope(Json action) => {
         'raw_description',
         'question',
         'input_value',
-        'input_unit'
+        'input_unit',
+        'name'
       ])
         if (action[key] is String) key: action[key],
       if (action['items'] is List)
@@ -108,6 +112,103 @@ Json actionScope(Json action) => {
             .map((c) => {'id': c['id'], 'type': c['type']})
             .toList(),
     };
+
+const exerciseFields = [
+  'name',
+  'duration_minutes',
+  'distance_meters',
+  'intensity',
+  'calories_kcal',
+  'calories_source',
+  'calories_basis',
+  'note'
+];
+
+void validateExercise(Json record) {
+  require(
+      record['name'] is String && (record['name'] as String).trim().isNotEmpty,
+      '运动名称不能为空');
+  for (final field in ['duration_minutes', 'distance_meters']) {
+    final value = record[field];
+    require(
+        value == null ||
+            value is num &&
+                value.isFinite &&
+                (field == 'duration_minutes' ? value > 0 : value >= 0),
+        field == 'duration_minutes' ? '运动时长须大于 0，未知留空' : '运动距离须为非负数，未知留空');
+  }
+  for (final field in ['intensity', 'note']) {
+    require(record[field] == null || record[field] is String, '运动说明格式不正确');
+  }
+  final value = record['calories_kcal'];
+  final source = record['calories_source'];
+  final basis = record['calories_basis'];
+  require(value == null || value is int && value >= 0, '运动消耗须为非负整数 kcal');
+  require(
+      ['unknown', 'user', 'ai'].contains(source) &&
+          (value == null) == (source == 'unknown'),
+      '运动消耗与来源不一致');
+  require(
+      basis == null ||
+          basis is Map && (source == 'unknown' || basis['note'] is String),
+      '运动消耗依据须包含文字说明');
+  if (source == 'ai') {
+    require(
+        record['duration_minutes'] is num &&
+            record['intensity'] is String &&
+            (record['intensity'] as String).trim().isNotEmpty &&
+            basis is Map &&
+            basis['weight_record_id'] is String &&
+            basis['weight_version'] is int &&
+            basis['weight_grams'] is int &&
+            basis['weight_grams'] > 0 &&
+            basis['met'] is num &&
+            (basis['met'] as num).isFinite &&
+            basis['met'] > 0,
+        '估算运动消耗需要明确时长、强度、参考体重与 MET 依据');
+  }
+}
+
+String exerciseEnergy(Json row) => row['calories_kcal'] == null
+    ? '消耗未知'
+    : '${row['calories_source'] == 'ai' ? '约 ' : ''}${row['calories_kcal']} kcal';
+
+String exerciseAmount(Json row) => [
+      if (row['duration_minutes'] != null)
+        '${numberText(row['duration_minutes'] as num)} 分钟',
+      if (row['distance_meters'] != null)
+        '${numberText(row['distance_meters'] as num)} 米',
+      if (row['intensity'] != null && row['intensity'] != '')
+        row['intensity'] as String,
+    ].join(' · ');
+
+void validateStoredExercise(Json row) {
+  final basis = jsonMap(row['calories_basis_json'] as String);
+  validateExercise({...row, 'calories_basis': basis});
+  if (row['calories_source'] == 'ai') {
+    require(
+        basis['method'] is String &&
+            basis['weight_local_date'] is String &&
+            basis['duration_minutes'] == row['duration_minutes'] &&
+            basis['intensity'] == row['intensity'],
+        '运动估算快照不完整');
+    validateDate(basis['weight_local_date'] as String, null);
+    require(
+        (basis['weight_local_date'] as String)
+                .compareTo(row['local_date'] as String) <=
+            0,
+        '运动估算不能使用之后的体重');
+    require(
+        ((basis['met'] as num) *
+                    (basis['weight_grams'] as int) /
+                    1000 *
+                    (row['duration_minutes'] as num) /
+                    60)
+                .round() ==
+            row['calories_kcal'],
+        '运动估算换算不一致');
+  }
+}
 
 void validateProposal(Json proposal) {
   final type = proposal['type'];

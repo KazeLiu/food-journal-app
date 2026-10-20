@@ -145,7 +145,7 @@ selected_date 是本句未明确其他日期时的默认范围，日历所选日
 }
 ```
 
-允许目录：find_food（名称关键词 / 日期范围）、list_meals（日期范围 / 餐别）、recent_weights（数量 / 日期范围）、nutrition_totals（日期范围）、find_library（名称 / 品牌 / 口味 / 规格）。输入全为类型化字段；SQLite 参数绑定，不能带 SQL、路径或任意代码。
+允许目录：find_food（名称关键词 / 日期范围）、list_meals（日期范围 / 餐别）、recent_weights（数量 / 日期范围）、nutrition_totals（日期范围）、find_exercise（运动名称 / 日期范围）、exercise_totals（日期范围）、find_library（名称 / 品牌 / 口味 / 规格）。输入全为类型化字段；SQLite 参数绑定，不能带 SQL、路径或任意代码。
 
 每轮最多一批 lookup，最多5个查询，每个最多50项、按当前记录返回；汇总在本地固定 SQL 计算。结果含 query_id、真实 ID / 版本、匹配数量、是否截断。再用相同时间与用户意图发一次 text 请求，返回 final 或澄清；不允许第二轮 lookup 循环。查无记录如实回答，不凭模型记忆猜。
 
@@ -215,6 +215,8 @@ local_time 为 HH:mm、凌晨 / 早上 / 上午 / 中午 / 下午 / 傍晚 / 晚
 | delete_food / delete_meal | id、expected_version；删末项同步删除空餐 |
 | create_weight | 新 client_ref、日期、时间、input_value、input_unit、原描述 |
 | update_weight / delete_weight | id、expected_version、允许 patch 或删除 |
+| create_exercise | 新 client_ref、日期、可空时间、名称、可空时长 / 距离 / 强度 / 消耗、来源与依据、原描述；可选 follow_up_question |
+| update_exercise / delete_exercise | id、expected_version、允许 patch 或删除；补充回答只更新原 ID |
 | undo_action | 提供给模型的既有 action_id；客户端生成与校验逆操作 |
 
 营养 source 允许 ai / user / label / library / unknown，未知 value=null。nutrition_basis 的 AI / 用户说明使用 `{note:"简短依据"}`，客户端也将文字形式规范为 note 对象；label 必有清晰原标签依据，library 必引用给定库 ID / version、基准及换算快照。客户端核验资料依据，不能接受模型凭空声称标签来源。食物 patch 不允许改 ID、来源消息、创建操作、创建时间或版本。
@@ -229,7 +231,7 @@ local_time 为 HH:mm、凌晨 / 早上 / 上午 / 中午 / 下午 / 傍晚 / 晚
 - update_meal：local_date、local_time、meal_type；明确移日但没有时刻时 local_time=null，不能改变餐内食物归属。
 - update_weight：input_value、input_unit、local_date、local_time；统一 grams 由客户端重新计算，不采用模型给出的换算值。
 - modify_meal_contents 的 changes 只允许对指定餐进行 add_food、update_food、delete_food，逐项带目标版本；不允许嵌套其他餐、任意字段或再次递归调用。
-- 删除只允许指定的有效 food / meal / weight；资料和记忆管理通过各自授权路径，不接受 delete_all 等额外类型。
+- 删除只允许指定的有效 food / meal / weight / exercise；资料和记忆管理通过各自授权路径，不接受 delete_all 等额外类型。
 
 有清晰标签基准和用户明确食用量时，客户端按基准计算并取显示精度，不让模型任意改算术结果；kJ换算和同一份量缩放也由客户端核算。无法建立明确换算关系时才采用标明来源的AI粗估。
 
@@ -284,13 +286,15 @@ proposals 仅是建议，不直接写库：type 为 save_common_food / save_pack
 
 APP 语气按 01；开发协作者的角色设定不进入产品提示词。实施时用用户配置确认实际模型能力，不写入开发者 Key。
 
-## 11. 运动业务扩展草案（R17，待确认）
+## 11. 运动业务（R17）
 
-本节描述后续扩展方向，当前 protocol_version=1 的动作与查询目录不因此增加新类型。最终字段、动作格式与协议版本在 [09](09-decisions-to-confirm.md#运动记录扩展r17) 的细节确认后制定。
+沿用 protocol_version=1，动作增加 create_exercise / update_exercise / delete_exercise，查询增加 find_exercise / exercise_totals；客户端随版本一起升级目录，旧 APK 不支持新动作。所选日上下文增加完整 selected_day_exercises、独立 selected_day_exercise_totals 和 exercise_reference_weight；其余 D09 完整日记录策略仍按第 6 节的待开发范围。
 
 - 同一条文字输入可提出多个饮食动作和独立运动动作，分别反馈；“准备运动”或咨询不等于已完成运动。
-- 建议支持运动新增、修改、删除、逐项撤销和有界历史查询；修改必须定位真实 ID 与当前版本，不能按运动名称覆盖所有同名记录。
-- 推荐允许只保存运动名称，其余信息未知时留空。若采用“先保存再追问”，补充回答应更新已提交记录，不能把原新增动作重新置为待提交；关联运动 ID、当前版本和待补内容的具体方式在开发前明确。
-- 不足以估算消耗时不编造数值；用户明确提供的消耗与 AI 估算区分来源，所用参数和依据随记录保存。体重和估算口径按 D07 确认。
+- 支持运动新增、修改、删除、逐项撤销和有界历史查询；修改定位真实 ID 与当前版本，不按名称覆盖同名记录。
+- 只提供名称也可 ready 保存，其余未知留空。create_exercise 可带 follow_up_question；提交器生成指向已保存运动的独立 update_exercise / waiting_input，带 optional_follow_up=true 与当前版本。回答复用现有 reply_to_action_id / retry_scope 路径；原新增不回退、不重做。可跳过问题，不阻塞后续聊天；旧版本或已删除对象的回答不再执行。
+- 创建字段为 client_ref、local_date、local_time、name、duration_minutes、distance_meters、intensity、calories_kcal、calories_source、calories_basis、raw_description、note。update_exercise.patch 允许除 client_ref / raw_description 外的上述业务字段；不接受 ID、版本或来源消息的变更。移日未给时刻时清空 local_time。
+- 用户消耗来源为 user，未知为 null / unknown。AI 估算须有明确时长、强度及运动日当天或此前最近体重；缺失就留空，不补造参数。calories_basis 包含 note、met、weight_record_id、weight_version、weight_grams，真实体重 ID 必须来自上下文或查询；事务内校验最新参考体重并由客户端计算 MET × kg × 小时，保存含静息消耗的参数快照。
+- MET 口径依据 [Compendium 的单位定义](https://pacompendium.com/)；活动及强度对应的 MET 是 AI 粗估，不声称在线查证。改变名称、时长、强度或日期时重新估算或同时清空 calories_kcal / calories_source / calories_basis，不能沿用不相符的旧估算；用户明确数值只按用户要求改变。
 - 混合消息中运动待补充或失败时，明确的独立饮食项仍可保存；后续仅处理未完成范围，不重记已保存食物或运动。
-- 运动查询结果单独返回有效记录和消耗汇总，不混入 nutrition_totals。现有食品营养补算协议不直接用于运动；是否补算运动消耗随 D07 确认。
+- 运动查询结果单独返回有效记录和消耗汇总，不混入 nutrition_totals。现有食品营养补算不用于运动，不自动补算旧运动消耗。

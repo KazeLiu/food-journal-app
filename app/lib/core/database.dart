@@ -6,7 +6,7 @@ import 'package:sqflite/sqflite.dart';
 import 'data.dart';
 
 class AppDatabase {
-  static const schemaVersion = 3;
+  static const schemaVersion = 4;
   final Database db;
   AppDatabase._(this.db);
 
@@ -30,6 +30,10 @@ class AppDatabase {
           if (oldVersion < 3) {
             await db.execute(
                 'ALTER TABLE chat_messages ADD COLUMN reasoning_text TEXT');
+          }
+          if (oldVersion < 4) {
+            await db.execute(exerciseSchema);
+            await db.execute(exerciseIndex);
           }
         });
     return AppDatabase._(db);
@@ -59,10 +63,24 @@ class AppDatabase {
     'meals',
     'food_items',
     'weight_records',
+    'exercise_records',
     'food_library',
     'ai_memories',
     'consent_proposals'
   ];
+
+  static const exerciseSchema = '''CREATE TABLE exercise_records (
+ id TEXT PRIMARY KEY, origin_action_id TEXT NOT NULL REFERENCES operation_actions(id), client_ref TEXT NOT NULL,
+ source_message_id TEXT REFERENCES chat_messages(id) ON DELETE SET NULL, local_date TEXT NOT NULL,
+ local_time TEXT, occurred_at_ms INTEGER, utc_offset_minutes INTEGER,
+ name TEXT NOT NULL CHECK(length(trim(name))>0), duration_minutes REAL CHECK(duration_minutes>0),
+ distance_meters REAL CHECK(distance_meters>=0), intensity TEXT,
+ calories_kcal INTEGER CHECK(calories_kcal>=0), calories_source TEXT NOT NULL CHECK(calories_source IN ('unknown','user','ai')),
+ calories_basis_json TEXT NOT NULL, raw_description TEXT NOT NULL, note TEXT,
+ version INTEGER NOT NULL DEFAULT 1 CHECK(version>=1), deleted_at_ms INTEGER,
+ created_at_ms INTEGER NOT NULL, updated_at_ms INTEGER NOT NULL, UNIQUE(origin_action_id,client_ref))''';
+  static const exerciseIndex =
+      'CREATE INDEX idx_exercise_day ON exercise_records(local_date,deleted_at_ms,local_time)';
 
   static const schema = '''
 CREATE TABLE operations (
@@ -135,5 +153,7 @@ CREATE INDEX idx_weight_day ON weight_records(local_date,deleted_at_ms,local_tim
 CREATE INDEX idx_library_name ON food_library(name,deleted_at_ms);
 CREATE INDEX idx_proposals_key ON consent_proposals(dedupe_key,status);
 CREATE INDEX idx_attachment_state ON chat_attachments(state);
+$exerciseSchema;
+$exerciseIndex;
 ''';
 }

@@ -36,7 +36,11 @@ class RecordCard extends StatelessWidget {
   Future<Json> load() async {
     final row = await s.records.row(table, id, includeDeleted: true);
     if (row == null) return {};
-    return {...row, if (table == 'meals') 'items': await s.records.foods(id)};
+    return {
+      ...row,
+      if (table == 'meals') 'items': await s.records.foods(id),
+      'can_undo': actionId != null && await s.records.canUndo(actionId!)
+    };
   }
 
   @override
@@ -59,6 +63,7 @@ class RecordCard extends StatelessWidget {
                       ])));
             }
             final isMeal = table == 'meals';
+            final isExercise = table == 'exercise_records';
             final items =
                 isMeal ? (row['items'] as List).cast<Json>() : <Json>[];
             final totals = sumItems(items);
@@ -72,14 +77,18 @@ class RecordCard extends StatelessWidget {
                             Icon(
                                 isMeal
                                     ? Icons.restaurant_outlined
-                                    : Icons.monitor_weight_outlined,
+                                    : isExercise
+                                        ? Icons.directions_run_outlined
+                                        : Icons.monitor_weight_outlined,
                                 color: Theme.of(context).colorScheme.primary),
                             const SizedBox(width: 8),
                             Expanded(
                                 child: Text(
                                     isMeal
                                         ? '${mealNames[row['meal_type']]} · ${items.length} 种食物'
-                                        : '体重记录',
+                                        : isExercise
+                                            ? row['name'] as String
+                                            : '体重记录',
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w600))),
                             const Icon(Icons.check_circle_outline,
@@ -91,11 +100,19 @@ class RecordCard extends StatelessWidget {
                           Text(
                               isMeal
                                   ? calorieText(totals)
-                                  : '${numberText((row['grams'] as int) / (row['input_unit'] == 'jin' ? 500 : 1000), 2)} ${row['input_unit'] == 'jin' ? '斤' : 'kg'}',
+                                  : isExercise
+                                      ? exerciseEnergy(row)
+                                      : '${numberText((row['grams'] as int) / (row['input_unit'] == 'jin' ? 500 : 1000), 2)} ${row['input_unit'] == 'jin' ? '斤' : 'kg'}',
                               style: Theme.of(context).textTheme.titleLarge),
                           if (isMeal) ...[
                             const SizedBox(height: 8),
                             Text(items.map((i) => i['name']).join('、'))
+                          ],
+                          if (isExercise) ...[
+                            const SizedBox(height: 8),
+                            Text(exerciseAmount(row).isEmpty
+                                ? '时长可稍后补充'
+                                : exerciseAmount(row)),
                           ],
                           const SizedBox(height: 8),
                           Text(recordDateTime(row),
@@ -127,7 +144,7 @@ class RecordCard extends StatelessWidget {
                                   });
                                 },
                                 child: const Text('AI 修改')),
-                            if (actionId != null)
+                            if (row['can_undo'] == true)
                               TextButton(
                                   onPressed: () => perform(context, () async {
                                         await s.committer.local({
@@ -246,6 +263,7 @@ class RecordDetail extends StatelessWidget {
                 final row = data['row'] as Json;
                 final table = data['table'] as String;
                 final meal = table == 'meals';
+                final exercise = table == 'exercise_records';
                 final deleted = row['deleted_at_ms'] != null;
                 return ListView(padding: const EdgeInsets.all(16), children: [
                   Text(recordDateTime(row),
@@ -256,7 +274,9 @@ class RecordDetail extends StatelessWidget {
                           ? '这条记录已删除'
                           : meal
                               ? mealNames[row['meal_type']]!
-                              : '${numberText((row['grams'] as int) / 1000, 2)} kg',
+                              : exercise
+                                  ? row['name'] as String
+                                  : '${numberText((row['grams'] as int) / 1000, 2)} kg',
                       style: Theme.of(context).textTheme.headlineSmall),
                   if (!deleted && meal) ...[
                     const SizedBox(height: 16),
@@ -265,6 +285,22 @@ class RecordDetail extends StatelessWidget {
                     ...(data['items'] as List)
                         .cast<Json>()
                         .map((i) => FoodNutrition(i, detailed: true)),
+                  ],
+                  if (!deleted && exercise) ...[
+                    const SizedBox(height: 16),
+                    Text(exerciseEnergy(row),
+                        style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 8),
+                    Text(exerciseAmount(row).isEmpty
+                        ? '时长、距离与强度未补充'
+                        : exerciseAmount(row)),
+                    Text('消耗来源：${sources[row['calories_source']]}',
+                        style: Theme.of(context).textTheme.bodySmall),
+                    if (jsonMap(row['calories_basis_json'] as String)
+                        .isNotEmpty)
+                      CompactDisclosure(
+                          title: '消耗估算依据', child: ExerciseBasis(row)),
+                    if (row['note'] != null) Text('备注：${row['note']}'),
                   ],
                   if (!deleted) ...[
                     const SizedBox(height: 16),
@@ -292,7 +328,9 @@ class RecordDetail extends StatelessWidget {
                                     await s.committer.local({
                                       'type': meal
                                           ? 'delete_meal'
-                                          : 'delete_weight',
+                                          : exercise
+                                              ? 'delete_exercise'
+                                              : 'delete_weight',
                                       'id': row['id'],
                                       'expected_version': row['version']
                                     });
@@ -305,6 +343,8 @@ class RecordDetail extends StatelessWidget {
                             if (meal) {
                               openMealEditor(context, s,
                                   meal: {...row, 'items': data['items']});
+                            } else if (exercise) {
+                              openExerciseEditor(context, s, exercise: row);
                             } else {
                               openWeightEditor(context, s, weight: row);
                             }
@@ -343,9 +383,32 @@ class RecordDetail extends StatelessWidget {
 String _actionTitle(String type) => switch (type) {
       'create_meal' => '新增饮食',
       'create_weight' => '新增体重',
+      'create_exercise' => '新增运动',
+      'update_exercise' => '补充 / 修改运动',
+      'delete_exercise' => '删除运动',
       'delete_meal' || 'delete_food' => '删除饮食',
       'delete_weight' => '删除体重',
       'undo_action' => '撤销操作',
       'backfill' => '补充营养',
       _ => '修改记录'
     };
+
+class ExerciseBasis extends StatelessWidget {
+  final Json row;
+  const ExerciseBasis(this.row, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    final basis = jsonMap(row['calories_basis_json'] as String);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (basis['note'] != null) Text(basis['note'] as String),
+      if (row['calories_source'] == 'ai') ...[
+        const SizedBox(height: 8),
+        Text(
+            '参考体重 ${numberText((basis['weight_grams'] as int) / 1000, 2)} kg（${basis['weight_local_date']}） · MET ${basis['met']}'),
+        Text('${basis['duration_minutes']} 分钟 · ${basis['intensity']}'),
+        Text(basis['method'] as String,
+            style: Theme.of(context).textTheme.bodySmall),
+      ]
+    ]);
+  }
+}
