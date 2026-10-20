@@ -4,7 +4,7 @@
 
 ## 使用
 
-1. 安装 debug APK 后选择体重默认单位。可跳过引导，直接手动新增饮食或体重。
+1. 安装 debug APK 后选择体重默认单位。可跳过引导，直接手动新增饮食、运动或体重。
 2. 使用 AI 时进入“我的 → AI 接口与模型”，填写接口前缀、Key 和文字主模型即可聊天。需要识图时再填图片主模型，两个兜底都可留空；填写时同类型主备不能同 ID。每个模型可单独选择思考强度，默认跟随服务端；只支持 Responses。
 3. 在 AI伙伴发送文字或最多 3 张图片。图片先识别成摘要，再交文字模型；发送后有小图，点击可放大。保存后显示记录卡片，同时保留 AI 原回复。我的记录中可查看月历、编辑、删除和撤销。
 
@@ -34,6 +34,8 @@ Key 保存在设备安全存储；业务备份不包含 Key、AI 配置或图片
 
 运动可与饮食混合描述，先保存再可选补充；“我的记录 → 日期旁 + → 记录运动”可离线新增。详情支持 AI / 直接编辑、删除和逐项撤销。消耗与饮食分别汇总，未知不写 0；数据管理提供单独运动 CSV，完整备份含运动与历史关系，支持 schema 1–3 旧文件恢复到 schema 4。
 
+外观采用石墨黑与柔和珊瑚橘，直接替换旧配色。跟随系统 / 浅色 / 深色沿用原有设置；公共组件、聊天、饮食 / 运动 / 体重记录和日历统一取色。App 图标资源不变。
+
 ## 构建
 
 已使用 Flutter 3.19.4 / Dart 3.3.2、JDK 17.0.9、Android SDK 34、NDK 25.1.8937393、Gradle 8.2、AGP 8.2.2、Kotlin 1.9.22。依赖以 pubspec.lock 为准；最低 Android 7.0（API 24），compile / target SDK 34。
@@ -48,11 +50,11 @@ flutter build apk --debug --no-pub
 
 本机 Flutter 路径为 D:\FlutterSDK，JDK 为 D:\Java\hold-that-bite-jdk17，Android SDK 为 D:\AndroidSDK。其他环境应配置自己的 Flutter / Java / Android SDK 路径，不复制 local.properties。
 
-产物：build/app/outputs/flutter-apk/app-debug.apk。应用 ID 为 local.foodjournal.app，版本 0.1.18+19。debug 包供个人设备验收；正式发布需要配置独立发布签名，不使用调试签名冒充正式包。
+产物：build/app/outputs/flutter-apk/app-debug.apk。应用 ID 为 local.foodjournal.app，版本 0.1.19+20。本机另保留 food-journal-0.1.19-debug.apk，已覆盖安装到 MuMu 16384。debug 包供个人设备验收；正式发布需要配置独立发布签名，不使用调试签名冒充正式包。
 
 ## 重点测试
 
-已加入主页滚动 / 分页、记录详情与表单、模型弹窗的 Widget 回归用例，以及真实 SQLite 事务 / 撤销、AI 主备与队列、HTTP / SSE 失败恢复、备份加密 / 恢复、图片清理和核心数据约定的重点测试。按本次约定只编写和静态检查，留给你后续执行；命令和报告要求见 [test/README.md](test/README.md)。
+项目已有主页滚动 / 分页、记录详情与表单、模型弹窗的 Widget 回归用例，以及 SQLite 事务 / 撤销、AI 主备与队列、HTTP / SSE、备份与图片清理等用例。本次运动与主题任务不新增、修改或运行自动化测试；现有入口和报告要求见 [test/README.md](test/README.md)，执行需另有授权。
 
 ## 源码入口
 
@@ -64,4 +66,4 @@ flutter build apk --debug --no-pub
 - library / settings：食品资料、授权记忆、接口和外观设置。
 - data_management：CSV、加密备份、校验预览、整库替换、安全副本与清除。
 
-单元 / Widget 用例尚未运行。0.1.15 的 MuMu 核对已确认用户通过表单识别两张照片并人工保存包装资料，没有新增聊天或饮食；旧回执去重与think正文点击收起已核对。当前包的安装与设备范围见 docs/10，其余模型兼容性、相机进程重建和数据恢复按 docs/06 验收。
+0.1.18 已通过输入框调用现有 DeepSeek 核对混合保存、原记录补充、消耗估算 / 纠正、查询和删除撤销；0.1.19 已查看新主题的浅深色、系统跟随、重启保留、大字体与相关页面。实际范围见 docs/10；320dp 窄屏、软键盘、系统选择器和完整恢复仍按 docs/06 由用户验收。

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app.dart';
 import '../core/data.dart';
+import '../core/theme.dart';
 import '../core/widgets.dart';
 import '../records/editors.dart';
 import '../records/record_card.dart';
@@ -195,7 +196,7 @@ class _CalendarPageState extends State<CalendarPage> {
                                                                   ? Border.all(
                                                                       color: Theme.of(context)
                                                                           .colorScheme
-                                                                          .primary)
+                                                                          .onPrimaryContainer)
                                                                   : null),
                                                           child: Column(
                                                               mainAxisAlignment:
@@ -216,15 +217,14 @@ class _CalendarPageState extends State<CalendarPage> {
                                                                             .center,
                                                                     children: [
                                                                       if (food)
-                                                                        _dot(const Color(
-                                                                            0xFFD78D72)),
+                                                                        _dot(JournalColors.of(context)
+                                                                            .foodMark),
                                                                       if (weight)
-                                                                        _dot(const Color(
-                                                                            0xFF9A85C4)),
+                                                                        _dot(JournalColors.of(context)
+                                                                            .weightMark),
                                                                       if (exercise)
-                                                                        _dot(Theme.of(context)
-                                                                            .colorScheme
-                                                                            .tertiary)
+                                                                        _dot(JournalColors.of(context)
+                                                                            .exerciseMark)
                                                                     ])
                                                               ]))));
                                             }),
@@ -234,13 +234,13 @@ class _CalendarPageState extends State<CalendarPage> {
                             Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  _dot(const Color(0xFFD78D72)),
+                                  _dot(JournalColors.of(context).foodMark),
                                   const Text('饮食'),
                                   const SizedBox(width: 24),
-                                  _dot(const Color(0xFF9A85C4)),
+                                  _dot(JournalColors.of(context).weightMark),
                                   const Text('体重'),
                                   const SizedBox(width: 24),
-                                  _dot(Theme.of(context).colorScheme.tertiary),
+                                  _dot(JournalColors.of(context).exerciseMark),
                                   const Text('运动')
                                 ]),
                             SectionTitle(s.day.value,

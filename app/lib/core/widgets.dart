@@ -153,7 +153,9 @@ class EmptyView extends StatelessWidget {
       child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(icon, size: 40, color: Theme.of(context).colorScheme.primary),
+            Icon(icon,
+                size: 40,
+                color: Theme.of(context).colorScheme.onPrimaryContainer),
             const SizedBox(height: 16),
             Text(title,
                 style: Theme.of(context).textTheme.titleMedium,
@@ -246,10 +248,7 @@ class NutritionSummary extends StatelessWidget {
           return Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primaryContainer
-                      .withOpacity(.45),
+                  color: Theme.of(context).colorScheme.secondaryContainer,
                   borderRadius: BorderRadius.circular(16)),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

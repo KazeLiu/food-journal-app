@@ -61,11 +61,7 @@ class ImagePreview extends StatelessWidget {
   const ImagePreview(this.file, {super.key});
   @override
   Widget build(BuildContext context) => Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-          title: const Text('图片预览'),
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white),
+      appBar: AppBar(title: const Text('图片预览')),
       body: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => Navigator.pop(context),
@@ -77,6 +73,5 @@ class ImagePreview extends StatelessWidget {
                       fit: BoxFit.contain,
                       errorBuilder: (_, __, ___) => const Padding(
                           padding: EdgeInsets.all(24),
-                          child: Text('图片预览已不可用',
-                              style: TextStyle(color: Colors.white))))))));
+                          child: Text('图片预览已不可用')))))));
 }

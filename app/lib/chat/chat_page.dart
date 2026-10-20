@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../app.dart';
 import '../core/data.dart';
+import '../core/theme.dart';
 import '../core/widgets.dart';
 import '../records/editors.dart';
 import '../records/record_card.dart';
@@ -451,10 +452,11 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) => SafeArea(
           child: Column(children: [
         AppBar(
-            title: const Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.auto_awesome_outlined),
-              SizedBox(width: 8),
-              Text('AI伙伴')
+            title: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.auto_awesome_outlined,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer),
+              const SizedBox(width: 8),
+              const Text('AI伙伴')
             ]),
             actions: [
               IconButton(
@@ -663,7 +665,10 @@ class _ChatPageState extends State<ChatPage> {
                                                 .textTheme
                                                 .bodySmall),
                                         const SizedBox(height: 4),
-                                        Text(calorieText(total)),
+                                        Text(calorieText(total),
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleLarge),
                                         if (total['missing_calories_kcal'] > 0)
                                           Text(
                                               '${total['missing_calories_kcal']} 项热量待估算',
@@ -744,11 +749,9 @@ class _ChatPageState extends State<ChatPage> {
                       decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(18),
                           color: highlighted == m['id']
-                              ? Theme.of(context).colorScheme.secondaryContainer
+                              ? Theme.of(context).colorScheme.tertiaryContainer
                               : user
-                                  ? Theme.of(context)
-                                      .colorScheme
-                                      .primaryContainer
+                                  ? JournalColors.of(context).userBubble
                                   : Theme.of(context).colorScheme.surface),
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1011,6 +1014,13 @@ class _ChatPageState extends State<ChatPage> {
           const SizedBox(width: 12),
           IconButton.filled(
               tooltip: '发送',
+              style: IconButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  disabledBackgroundColor:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(.12),
+                  disabledForegroundColor:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(.38)),
               onPressed: sending ? null : () => perform(context, _send),
               icon: const Icon(Icons.arrow_upward)),
         ]),

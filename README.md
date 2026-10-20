@@ -19,21 +19,26 @@
   <tr>
     <td align="center" width="33%"><strong>AI 伙伴</strong></td>
     <td align="center" width="33%"><strong>每日记录</strong></td>
-    <td align="center" width="33%"><strong>食品资料</strong></td>
+    <td align="center" width="33%"><strong>运动记录</strong></td>
   </tr>
   <tr>
-    <td align="center"><a href="docs/assets/screenshots/ai-partner.png"><img src="docs/assets/screenshots/ai-partner.png" width="240" alt="AI伙伴：自然回复与早餐记录卡同时保留"></a></td>
-    <td align="center"><a href="docs/assets/screenshots/daily-records.png"><img src="docs/assets/screenshots/daily-records.png" width="240" alt="我的记录：月历、每日热量和营养汇总"></a></td>
-    <td align="center"><a href="docs/assets/screenshots/food-library.png"><img src="docs/assets/screenshots/food-library.png" width="240" alt="食品资料：名称、别名、规格和营养基准可编辑"></a></td>
+    <td align="center"><a href="docs/assets/screenshots/ai-partner.png"><img src="docs/assets/screenshots/ai-partner.png" width="240" alt="浅色 AI伙伴：搜索定位，补充回复与更新后的运动卡同时保留"></a></td>
+    <td align="center"><a href="docs/assets/screenshots/daily-records.png"><img src="docs/assets/screenshots/daily-records.png" width="240" alt="浅色我的记录：三类日历标记、每日热量和营养汇总"></a></td>
+    <td align="center"><a href="docs/assets/screenshots/exercise-records.png"><img src="docs/assets/screenshots/exercise-records.png" width="240" alt="浅色运动记录：独立汇总与游泳卡，未知消耗留空"></a></td>
   </tr>
   <tr>
     <td align="center">搜索定位，回复与记录卡并存</td>
-    <td align="center">按日期回看饮食和体重</td>
-    <td align="center">拍照填表，核对后人工保存</td>
+    <td align="center">按日期回看饮食、运动和体重</td>
+    <td align="center">独立汇总，未知消耗不当作零</td>
+  </tr>
+  <tr>
+    <td align="center"><a href="docs/assets/screenshots/ai-partner-dark.png"><img src="docs/assets/screenshots/ai-partner-dark.png" width="240" alt="深色 AI伙伴：石墨底色、柔和珊瑚用户气泡与搜索高亮"></a></td>
+    <td align="center"><a href="docs/assets/screenshots/daily-records-dark.png"><img src="docs/assets/screenshots/daily-records-dark.png" width="240" alt="深色我的记录：中性营养区、三类日历标记与饮食卡"></a></td>
+    <td align="center"><a href="docs/assets/screenshots/exercise-records-dark.png"><img src="docs/assets/screenshots/exercise-records-dark.png" width="240" alt="深色运动记录：运动汇总和可编辑记录卡"></a></td>
   </tr>
 </table>
 
-截图来自 0.1.16 的 MuMu 实际界面，展示试用示例数据；点击图片可查看原图。
+截图来自 0.1.19 的 MuMu 实际界面，上排浅色、下排深色；10 月 16 日为混合饮食与运动的联调示例。点击图片可查看原图。
 
 ## 可以做什么
 
@@ -41,6 +46,8 @@
 - **可纠正的记录卡**：原回复不被卡片覆盖，一餐多个食物；支持聊天纠正、直接编辑、逐项撤销和搜索定位。
 - **自己的食品资料库**：拍包装、营养表或配料表填写草稿，AI可联想常用别名；核对并保存后，后续记录按资料库原值换算。
 - **轻量日常入口**：今日概览固定顶部，日历回看历史；体重同日多次独立保存，支持斤 / 公斤。
+- **饮食与运动一起说**：分别保存；运动可先记名称，再补时长。消耗独立汇总，不与饮食抵扣。
+- **统一新主题**：暖中性浅色与石墨深色共用柔和珊瑚橘，支持跟随系统。
 - **保留思考与失败恢复**：接口返回的思考可折叠查看；失败项可重试或手动处理，成功项不重复保存。
 - **数据自己保管**：SQLite本地记录，无账号或自有服务器；支持CSV、完整备份和可选密码，不做云同步。
 
@@ -56,7 +63,7 @@ Key只保存在设备安全存储。使用AI时，会向你配置的服务发送
 
 ## 开发文档
 
-Flutter Android 源码位于 [app/](app/README.md)，当前版本 **0.1.18+19**。构建、安装和实际验收范围见 [10 实现状态](docs/10-implementation-status.md)；当前包使用开发调试签名，正式发布需要独立签名。
+Flutter Android 源码位于 [app/](app/README.md)，当前版本 **0.1.19+20**。构建、安装和实际验收范围见 [10 实现状态](docs/10-implementation-status.md)；当前包使用开发调试签名，正式发布需要独立签名。
 
 | 文档 | 内容 |
 | --- | --- |
@@ -82,9 +89,9 @@ D01、D02、D03 均已确认 A：保留直接编辑、长按引用不加右滑�
 
 主对话上下文另按 D09 调整设计：默认提供当天全部记录，指定日期或比较时使用涉及日期；调用策略建议复用现有按需查询，见 [04 的按日上下文调整](docs/04-ai-contract.md#按日上下文调整d09待开发)。当前代码尚未改为此规则。
 
-## 主题视觉升级（待实施）
+## 统一主题
 
-主题视觉升级按 [11 主题视觉规范](docs/11-theme-design.md)：同时优化浅色与深色，沿用 Flutter 原生主题和现有设置持久化，保留业务功能与布局。主题规范待实施；“餐盘 + 相机取景框”的[透明底图标](docs/assets/app-icon-transparent-v2.png) 已接入 Android 多密度与自适应资源，手机实际显示由用户安装后验收。
+旧浅色与深色配色已由“现代科技感 × 石墨黑 × 柔和珊瑚橘”直接替换，不保留旧主题选项。跟随系统 / 浅色 / 深色仍是现有三个外观模式，沿用 Flutter 原生主题和原有设置持久化；运动卡片、表单与日历标记一并适配。颜色与组件要求见 [11 主题视觉规范](docs/11-theme-design.md)。“餐盘 + 相机取景框”的[透明底图标](docs/assets/app-icon-transparent-v2.png) 保持不变。
 
 ## 实现约定
 

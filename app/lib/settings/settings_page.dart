@@ -109,7 +109,7 @@ class SettingsPage extends StatelessWidget {
                                               builder: (_) => DataPage(s))))),
                               const SizedBox(height: 24),
                               const Text(
-                                  'AI 减脂伙伴 · 0.1.18\n本地保存，无账号、广告或分析上传。\nAI 估算用于个人记录，不替代专业营养或医疗建议。',
+                                  'AI 减脂伙伴 · 0.1.19\n本地保存，无账号、广告或分析上传。\nAI 估算用于个人记录，不替代专业营养或医疗建议。',
                                   style: TextStyle(fontSize: 14),
                                   textAlign: TextAlign.center),
                             ])))),

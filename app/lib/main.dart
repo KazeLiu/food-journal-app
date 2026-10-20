@@ -27,6 +27,8 @@ class _JournalBootstrapState extends State<JournalBootstrap> {
           if (services == null) {
             return MaterialApp(
                 theme: journalTheme(false),
+                darkTheme: journalTheme(true),
+                debugShowCheckedModeBanner: false,
                 home: Scaffold(
                     body: Center(
                         child: Padding(

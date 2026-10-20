@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app.dart';
 import '../core/data.dart';
+import '../core/theme.dart';
 import '../core/widgets.dart';
 import 'editors.dart';
 
@@ -80,7 +81,9 @@ class RecordCard extends StatelessWidget {
                                     : isExercise
                                         ? Icons.directions_run_outlined
                                         : Icons.monitor_weight_outlined,
-                                color: Theme.of(context).colorScheme.primary),
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onPrimaryContainer),
                             const SizedBox(width: 8),
                             Expanded(
                                 child: Text(
@@ -91,10 +94,10 @@ class RecordCard extends StatelessWidget {
                                             : '体重记录',
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w600))),
-                            const Icon(Icons.check_circle_outline,
+                            Icon(Icons.check_circle_outline,
                                 size: 20,
                                 semanticLabel: '已保存',
-                                color: Color(0xFF4F9874))
+                                color: JournalColors.of(context).success)
                           ]),
                           const SizedBox(height: 12),
                           Text(
