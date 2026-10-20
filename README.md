@@ -6,6 +6,7 @@
 <p align="center"><strong>Android · Flutter · 本地保存 · 自选 AI 接口</strong></p>
 <p align="center">
   <a href="#界面一览">界面一览</a> ·
+  <a href="https://github.com/KazeLiu/food-journal-app/releases/tag/v0.1.20-preview.1">下载预发行版</a> ·
   <a href="#开始使用">开始使用</a> ·
   <a href="app/README.md">构建工程</a> ·
   <a href="#开发文档">开发文档</a>
@@ -53,7 +54,7 @@
 
 ## 开始使用
 
-1. 按 [Android 工程说明](app/README.md#构建)构建并安装 debug APK；无 API 也可手动记录。
+1. 下载 [0.1.20 release 预发行版](https://github.com/KazeLiu/food-journal-app/releases/tag/v0.1.20-preview.1)，或按 [Android 工程说明](app/README.md#构建)自行构建；无 API 也可手动记录。已有 debug 包需先完整备份再换装，不能跨签名覆盖，见[换装说明](docs/releases/v0.1.20-preview.1.md#从-debug-包换装前先备份)。
 2. 使用 AI 时，在“我的 → AI 接口与模型”填写 Base URL、Key 和文字主模型。服务需支持 **Responses API**；图片主模型按需配置，两个备用模型可留空，各模型可单独选择思考强度。
 3. 在 AI伙伴发消息，或进入“食品资料库 → 添加食品资料 → AI 拍照识别”。后者只填写表单，不创建已吃记录，需自行点击保存。
 
@@ -63,7 +64,7 @@ Key只保存在设备安全存储。使用AI时，会向你配置的服务发送
 
 ## 开发文档
 
-Flutter Android 源码位于 [app/](app/README.md)，当前版本 **0.1.20+21**。构建、安装和实际验收范围见 [10 实现状态](docs/10-implementation-status.md)；当前包使用开发调试签名，正式发布需要独立签名。
+Flutter Android 源码位于 [app/](app/README.md)，当前版本 **0.1.20+21**。release 预发行版使用独立发布签名，debug 联调包仍使用开发调试签名。构建、安装和实际验收范围见 [10 实现状态](docs/10-implementation-status.md)。
 
 | 文档 | 内容 |
 | --- | --- |
@@ -97,6 +98,6 @@ D01、D02、D03 均已确认 A：保留直接编辑、长按引用不加右滑�
 
 数据结构以 03 为准，AI 格式以 04 为准，状态和恢复以 05 为准。08 追溯参考设计，09 保留产品决策，10 记录实际交付和设备证据，11 统一维护主题视觉规范。
 
-构建方法见 [app/README.md](app/README.md)。当前包为开发调试签名，正式发布需要单独配置并保管签名。
+构建方法见 [app/README.md](app/README.md)。发布密钥及配置仅保存在本机私有目录，不随源码或发行附件提供；后续 release 沿用同一签名。
 
 开发者默认通过阅读代码、核对调用关系和差异自查；06 的场景是验收定义，不是已执行结果。

@@ -4,7 +4,7 @@
 
 ## 使用
 
-1. 安装 debug APK 后选择体重默认单位。可跳过引导，直接手动新增饮食、运动或体重。
+1. 安装 APK 后选择体重默认单位。可跳过引导，直接手动新增饮食、运动或体重。此前 debug 包与独立签名 release 不可互相覆盖，换装先按[预发行说明](../docs/releases/v0.1.20-preview.1.md)完整备份。
 2. 使用 AI 时进入“我的 → AI 接口与模型”，填写接口前缀、Key 和文字主模型即可聊天。需要识图时再填图片主模型，两个兜底都可留空；填写时同类型主备不能同 ID。每个模型可单独选择思考强度，默认跟随服务端；只支持 Responses。
 3. 在 AI伙伴发送文字或最多 3 张图片。图片先识别成摘要，再交文字模型；发送后有小图，点击可放大。保存后显示记录卡片，同时保留 AI 原回复。我的记录中可查看月历、编辑、删除和撤销。
 
@@ -50,7 +50,20 @@ flutter build apk --debug --no-pub
 
 本机 Flutter 路径为 D:\FlutterSDK，JDK 为 D:\Java\hold-that-bite-jdk17，Android SDK 为 D:\AndroidSDK。其他环境应配置自己的 Flutter / Java / Android SDK 路径，不复制 local.properties。
 
-产物：build/app/outputs/flutter-apk/app-debug.apk。应用 ID 为 local.foodjournal.app，版本 0.1.20+21。本机另保留 food-journal-0.1.20-debug.apk。debug 包供个人设备验收；正式发布需要配置独立发布签名，不使用调试签名冒充正式包。
+debug 产物为 build/app/outputs/flutter-apk/app-debug.apk，另保留 food-journal-0.1.20-debug.apk。应用 ID 为 local.foodjournal.app，版本 0.1.20+21。
+
+### release 与发布签名
+
+release 使用独立签名，不回退到 debug 签名。将 `android/key.properties.example` 按字段配置为不入库的 `android/key.properties`，或通过 `FOOD_JOURNAL_SIGNING_PROPERTIES` 指向外部私有配置。配置由 Gradle 读取，不将密码写入命令行、源码或发布说明。
+
+本机已获准创建的签名保存在 `%USERPROFILE%\.android\food-journal-app\`，目录含 `release.jks` 和 `key.properties`，仅当前用户及 SYSTEM 可访问。应私下备份整个目录；密钥或密码丢失后无法继续同签名升级。签名文件、密码与 AI 配置都不作为发行附件。
+
+```powershell
+$env:FOOD_JOURNAL_SIGNING_PROPERTIES = Join-Path $env:USERPROFILE '.android\food-journal-app\key.properties'
+flutter build apk --release --no-pub
+```
+
+release 产物为 build/app/outputs/flutter-apk/app-release.apk，发行附件使用 food-journal-0.1.20-release.apk。GitHub 标记为预发行版，不作为稳定版；首次从 debug 换装的备份、图片与 AI 配置限制见[预发行说明](../docs/releases/v0.1.20-preview.1.md)。
 
 ## 重点测试
 

@@ -1,0 +1,6 @@
+# Keep the real key.properties and keystore outside version control.
+# Alternatively set FOOD_JOURNAL_SIGNING_PROPERTIES to a private properties file.
+storeFile=C:/private/path/food-journal-release.jks
+storePassword=
+keyAlias=food-journal-release
+keyPassword=

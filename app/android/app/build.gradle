@@ -22,6 +22,16 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
+def signingProperties = new Properties()
+def signingPropertiesFile = System.getenv('FOOD_JOURNAL_SIGNING_PROPERTIES')
+        ? file(System.getenv('FOOD_JOURNAL_SIGNING_PROPERTIES'))
+        : rootProject.file('key.properties')
+if (signingPropertiesFile.exists()) {
+    signingPropertiesFile.withReader('UTF-8') { reader ->
+        signingProperties.load(reader)
+    }
+}
+
 android {
     namespace "local.foodjournal.food_journal"
     compileSdk 34
@@ -48,6 +58,33 @@ android {
         versionName flutterVersionName
     }
 
+    signingConfigs {
+        release {
+            if (signingPropertiesFile.exists()) {
+                storeFile file(signingProperties.getProperty('storeFile'))
+                storePassword signingProperties.getProperty('storePassword')
+                keyAlias signingProperties.getProperty('keyAlias')
+                keyPassword signingProperties.getProperty('keyPassword')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            proguardFiles 'proguard-rules.pro'
+        }
+    }
+}
+
+tasks.configureEach { task ->
+    if (task.name == 'validateSigningRelease') {
+        task.doFirst {
+            if (!signingPropertiesFile.exists()) {
+                throw new GradleException('Release 构建需要 key.properties 或 FOOD_JOURNAL_SIGNING_PROPERTIES 指定的发布签名配置。')
+            }
+        }
+    }
 }
 
 flutter {
