@@ -154,18 +154,29 @@ void validateExercise(Json record) {
       '运动消耗依据须包含文字说明');
   if (source == 'ai') {
     require(
-        record['duration_minutes'] is num &&
-            record['intensity'] is String &&
-            (record['intensity'] as String).trim().isNotEmpty &&
-            basis is Map &&
-            basis['weight_record_id'] is String &&
-            basis['weight_version'] is int &&
-            basis['weight_grams'] is int &&
-            basis['weight_grams'] > 0 &&
-            basis['met'] is num &&
-            (basis['met'] as num).isFinite &&
-            basis['met'] > 0,
-        '估算运动消耗需要明确时长、强度、参考体重与 MET 依据');
+        record['duration_minutes'] is num && basis is Map, '估算运动消耗需要运动时长与依据');
+    if (basis['method'] == 'range_midpoint') {
+      require(
+          basis['lower_kcal'] is num &&
+              (basis['lower_kcal'] as num).isFinite &&
+              basis['lower_kcal'] >= 0 &&
+              basis['upper_kcal'] is num &&
+              (basis['upper_kcal'] as num).isFinite &&
+              basis['upper_kcal'] >= basis['lower_kcal'],
+          '运动消耗估算区间须为非负数且上限不小于下限');
+    } else {
+      require(
+          record['intensity'] is String &&
+              (record['intensity'] as String).trim().isNotEmpty &&
+              basis['weight_record_id'] is String &&
+              basis['weight_version'] is int &&
+              basis['weight_grams'] is int &&
+              basis['weight_grams'] > 0 &&
+              basis['met'] is num &&
+              (basis['met'] as num).isFinite &&
+              basis['met'] > 0,
+          '估算运动消耗需要明确时长、强度、参考体重与 MET 依据');
+    }
   }
 }
 
@@ -188,10 +199,18 @@ void validateStoredExercise(Json row) {
   if (row['calories_source'] == 'ai') {
     require(
         basis['method'] is String &&
-            basis['weight_local_date'] is String &&
             basis['duration_minutes'] == row['duration_minutes'] &&
             basis['intensity'] == row['intensity'],
         '运动估算快照不完整');
+    if (basis['method'] == 'range_midpoint') {
+      require(
+          ((basis['lower_kcal'] as num) / 2 + (basis['upper_kcal'] as num) / 2)
+                  .round() ==
+              row['calories_kcal'],
+          '运动消耗须取估算区间中值');
+      return;
+    }
+    require(basis['weight_local_date'] is String, '运动估算缺少参考体重日期');
     validateDate(basis['weight_local_date'] as String, null);
     require(
         (basis['weight_local_date'] as String)

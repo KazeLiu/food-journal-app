@@ -406,11 +406,18 @@ class ExerciseBasis extends StatelessWidget {
       if (basis['note'] != null) Text(basis['note'] as String),
       if (row['calories_source'] == 'ai') ...[
         const SizedBox(height: 8),
-        Text(
-            '参考体重 ${numberText((basis['weight_grams'] as int) / 1000, 2)} kg（${basis['weight_local_date']}） · MET ${basis['met']}'),
-        Text('${basis['duration_minutes']} 分钟 · ${basis['intensity']}'),
-        Text(basis['method'] as String,
-            style: Theme.of(context).textTheme.bodySmall),
+        if (basis['method'] == 'range_midpoint') ...[
+          Text(
+              '估算范围 ${numberText(basis['lower_kcal'] as num)}–${numberText(basis['upper_kcal'] as num)} kcal'),
+          Text('${numberText(basis['duration_minutes'] as num)} 分钟 · 取区间中值',
+              style: Theme.of(context).textTheme.bodySmall),
+        ] else ...[
+          Text(
+              '参考体重 ${numberText((basis['weight_grams'] as int) / 1000, 2)} kg（${basis['weight_local_date']}） · MET ${basis['met']}'),
+          Text('${basis['duration_minutes']} 分钟 · ${basis['intensity']}'),
+          Text(basis['method'] as String,
+              style: Theme.of(context).textTheme.bodySmall),
+        ],
       ]
     ]);
   }

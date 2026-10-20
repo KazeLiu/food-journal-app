@@ -597,7 +597,9 @@ class _ExerciseEditorState extends State<ExerciseEditor> {
                 controller: calories,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                    labelText: '消耗（未知留空）', suffixText: 'kcal'),
+                    labelText: '消耗（可选）',
+                    helperText: '不必知道准确热量，也可保存后通过 AI 估算。',
+                    suffixText: 'kcal'),
                 onChanged: (_) => dirty = true),
             if (clearedEstimate)
               const Padding(

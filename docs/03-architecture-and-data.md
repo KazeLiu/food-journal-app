@@ -319,7 +319,8 @@ schema 4 新增独立 exercise_records 及日期索引，不修改 meals / food_
 - 时间沿用第 4 节的固定参考时间和时段规则，不把句子中的先后顺序换算成具体时刻；时长未知与实际为 0 分开。
 - 日汇总分别读取饮食和运动，消耗另计已知值与缺失数；不能将多条运动与多条食物直接 JOIN 后相加造成重复。
 - RecordRepository、ActionCommitter 和 BackupService 扩展承担查询、提交、撤销和备份。businessTables / entityTables 纳入运动，完整备份、安全副本、恢复和清除共用原有表顺序。
-- AI 估算读取运动日当天或此前最近体重，事务内核对真实 ID / version / grams。calories_basis_json 保存 note、met、weight_record_id、weight_version、weight_grams、weight_local_date、duration_minutes、intensity 与 method 快照。后续称重不会重算运动，历史估算保留当时依据。
+- AI 估算优先使用 `method=range_midpoint`：calories_basis_json 保存 lower_kcal、upper_kcal、note、duration_minutes 和可空 intensity。note 说明运动类型、参考信息与一般强度 / 成人体重等假设；假设不写成真实测量。客户端计算 round(lower_kcal / 2 + upper_kcal / 2)，保存、恢复时核对范围和中值。
+- 有明确强度与真实适用体重时，仍支持原 MET 估算：读取运动日当天或此前最近体重，事务内核对 ID / version / grams；保存 note、met、weight_record_id、weight_version、weight_grams、weight_local_date、duration_minutes、intensity 与 method 快照。缺体重或强度不阻塞区间估算。后续称重不会重算运动，旧 MET 快照继续可读、撤销与恢复，schema 仍为 4。
 - create_exercise 提交成功且有可选问题时，同事务创建独立 waiting_input 的 update_exercise，带已生成 ID 和当前版本；新增保持 committed。补充不是重做新增，版本不符或记录不存在时拒绝旧回答。
 
 ```sql

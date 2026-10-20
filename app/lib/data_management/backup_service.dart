@@ -683,8 +683,10 @@ class BackupService {
       validateStoredExercise(row);
       if (row['calories_source'] == 'ai') {
         final basis = jsonMap(row['calories_basis_json'] as String);
-        require(ids['weight_records']!.contains(basis['weight_record_id']),
-            '运动估算引用的体重缺失');
+        if (basis['method'] != 'range_midpoint') {
+          require(ids['weight_records']!.contains(basis['weight_record_id']),
+              '运动估算引用的体重缺失');
+        }
       }
     }
     if (table == 'food_items') {

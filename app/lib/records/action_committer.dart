@@ -923,7 +923,17 @@ class ActionCommitter {
     var calories = input['calories_kcal'];
     Json basis =
         Map<String, dynamic>.from(input['calories_basis'] as Map? ?? {});
-    if (input['calories_source'] == 'ai' && verifyWeight) {
+    if (input['calories_source'] == 'ai' &&
+        basis['method'] == 'range_midpoint') {
+      calories =
+          ((basis['lower_kcal'] as num) / 2 + (basis['upper_kcal'] as num) / 2)
+              .round();
+      basis = {
+        ...basis,
+        'duration_minutes': input['duration_minutes'],
+        'intensity': input['intensity']
+      };
+    } else if (input['calories_source'] == 'ai' && verifyWeight) {
       final weight = await records.exerciseWeight(input['local_date'] as String,
           executor: m.tx);
       require(

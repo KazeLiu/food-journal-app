@@ -294,7 +294,9 @@ APP 语气按 01；开发协作者的角色设定不进入产品提示词。实�
 - 支持运动新增、修改、删除、逐项撤销和有界历史查询；修改定位真实 ID 与当前版本，不按名称覆盖同名记录。
 - 只提供名称也可 ready 保存，其余未知留空。create_exercise 可带 follow_up_question；提交器生成指向已保存运动的独立 update_exercise / waiting_input，带 optional_follow_up=true 与当前版本。回答复用现有 reply_to_action_id / retry_scope 路径；原新增不回退、不重做。可跳过问题，不阻塞后续聊天；旧版本或已删除对象的回答不再执行。
 - 创建字段为 client_ref、local_date、local_time、name、duration_minutes、distance_meters、intensity、calories_kcal、calories_source、calories_basis、raw_description、note。update_exercise.patch 允许除 client_ref / raw_description 外的上述业务字段；不接受 ID、版本或来源消息的变更。移日未给时刻时清空 local_time。
-- 用户消耗来源为 user，未知为 null / unknown。AI 估算须有明确时长、强度及运动日当天或此前最近体重；缺失就留空，不补造参数。calories_basis 包含 note、met、weight_record_id、weight_version、weight_grams，真实体重 ID 必须来自上下文或查询；事务内校验最新参考体重并由客户端计算 MET × kg × 小时，保存含静息消耗的参数快照。
+- 用户消耗来源为 user，优先保留。没有用户数值时，只要运动类型与时长明确，主动给出合理消耗范围，不要求准确卡路里、泳姿、强度或体重。缺强度按一般情况、缺体重按一般成人参考，假设写入依据，不伪装成真实数据。时长未给出仍为 null / unknown，可选问时长；补充时长后更新原 ID 并同时估算消耗，不继续为体重 / 强度追问。
+- 区间估算 `calories_source=ai`，`calories_basis={method:"range_midpoint",lower_kcal,upper_kcal,note}`；范围非负、上限不小于下限，note 解释参考信息与假设。客户端重算区间中值并四舍五入，不直接信任模型的算术结果，保存实际 duration_minutes / intensity 快照。用户给定 80–150 kcal 的范围时取 115 kcal；该数字不是固定游泳常量。
+- 有明确强度和真实参考体重时也支持 MET：calories_basis 包含 note、met、weight_record_id、weight_version、weight_grams，ID 必须来自上下文或查询；事务内校验运动日当天或此前最近体重并计算 MET × kg × 小时。旧 MET 记录与备份继续支持，缺该条件使用区间中值，不阻塞记录。
 - MET 口径依据 [Compendium 的单位定义](https://pacompendium.com/)；活动及强度对应的 MET 是 AI 粗估，不声称在线查证。改变名称、时长、强度或日期时重新估算或同时清空 calories_kcal / calories_source / calories_basis，不能沿用不相符的旧估算；用户明确数值只按用户要求改变。
 - 混合消息中运动待补充或失败时，明确的独立饮食项仍可保存；后续仅处理未完成范围，不重记已保存食物或运动。
 - 运动查询结果单独返回有效记录和消耗汇总，不混入 nutrition_totals。现有食品营养补算不用于运动，不自动补算旧运动消耗。

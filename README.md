@@ -22,23 +22,23 @@
     <td align="center" width="33%"><strong>运动记录</strong></td>
   </tr>
   <tr>
-    <td align="center"><a href="docs/assets/screenshots/ai-partner.png"><img src="docs/assets/screenshots/ai-partner.png" width="240" alt="浅色 AI伙伴：搜索定位，补充回复与更新后的运动卡同时保留"></a></td>
+    <td align="center"><a href="docs/assets/screenshots/ai-partner.png"><img src="docs/assets/screenshots/ai-partner.png" width="240" alt="浅色 AI伙伴：估算回复与更新后的运动卡同时保留"></a></td>
     <td align="center"><a href="docs/assets/screenshots/daily-records.png"><img src="docs/assets/screenshots/daily-records.png" width="240" alt="浅色我的记录：三类日历标记、每日热量和营养汇总"></a></td>
-    <td align="center"><a href="docs/assets/screenshots/exercise-records.png"><img src="docs/assets/screenshots/exercise-records.png" width="240" alt="浅色运动记录：独立汇总与游泳卡，未知消耗留空"></a></td>
+    <td align="center"><a href="docs/assets/screenshots/exercise-records.png"><img src="docs/assets/screenshots/exercise-records.png" width="240" alt="浅色运动记录：独立汇总与游泳估算卡"></a></td>
   </tr>
   <tr>
-    <td align="center">搜索定位，回复与记录卡并存</td>
+    <td align="center">自然回复与更新后的记录卡并存</td>
     <td align="center">按日期回看饮食、运动和体重</td>
-    <td align="center">独立汇总，未知消耗不当作零</td>
+    <td align="center">主动估算消耗，与饮食分别汇总</td>
   </tr>
   <tr>
-    <td align="center"><a href="docs/assets/screenshots/ai-partner-dark.png"><img src="docs/assets/screenshots/ai-partner-dark.png" width="240" alt="深色 AI伙伴：石墨底色、柔和珊瑚用户气泡与搜索高亮"></a></td>
+    <td align="center"><a href="docs/assets/screenshots/ai-partner-dark.png"><img src="docs/assets/screenshots/ai-partner-dark.png" width="240" alt="深色 AI伙伴：石墨底色、柔和珊瑚用户气泡与游泳估算卡"></a></td>
     <td align="center"><a href="docs/assets/screenshots/daily-records-dark.png"><img src="docs/assets/screenshots/daily-records-dark.png" width="240" alt="深色我的记录：中性营养区、三类日历标记与饮食卡"></a></td>
     <td align="center"><a href="docs/assets/screenshots/exercise-records-dark.png"><img src="docs/assets/screenshots/exercise-records-dark.png" width="240" alt="深色运动记录：运动汇总和可编辑记录卡"></a></td>
   </tr>
 </table>
 
-截图来自 0.1.19 的 MuMu 实际界面，上排浅色、下排深色；10 月 16 日为混合饮食与运动的联调示例。点击图片可查看原图。
+截图来自 0.1.20 的 MuMu 实际界面，上排浅色、下排深色；10 月 16 日为混合饮食与运动的联调示例，游泳已按范围取中值估算。点击图片可查看原图。
 
 ## 可以做什么
 
@@ -63,7 +63,7 @@ Key只保存在设备安全存储。使用AI时，会向你配置的服务发送
 
 ## 开发文档
 
-Flutter Android 源码位于 [app/](app/README.md)，当前版本 **0.1.19+20**。构建、安装和实际验收范围见 [10 实现状态](docs/10-implementation-status.md)；当前包使用开发调试签名，正式发布需要独立签名。
+Flutter Android 源码位于 [app/](app/README.md)，当前版本 **0.1.20+21**。构建、安装和实际验收范围见 [10 实现状态](docs/10-implementation-status.md)；当前包使用开发调试签名，正式发布需要独立签名。
 
 | 文档 | 内容 |
 | --- | --- |
@@ -85,7 +85,7 @@ D01、D02、D03 均已确认 A：保留直接编辑、长按引用不加右滑�
 
 同一条 AI 对话可混合描述饮食和运动，分别保存，在“我的记录”按日期查看。只说“游了个泳”也能先记下，时长与消耗留空；稍后回答问题时更新原记录，不再新增一次。
 
-运动支持手动新增、编辑、聊天纠正、查询、删除撤销、独立汇总与 CSV / 完整备份恢复。用户消耗优先，AI 仅在时长、强度和适用体重足够时粗估并保留依据；运动不算负热量食物，不自动计算热量缺口。
+运动支持手动新增、编辑、聊天纠正、查询、删除撤销、独立汇总与 CSV / 完整备份恢复。有运动类型和时长，AI 就按合理范围取中值，标明“约”并保留假设，不要求准确卡路里、泳姿、强度或体重；用户明确提供的消耗仍优先。运动不算负热量食物，不自动计算热量缺口。
 
 主对话上下文另按 D09 调整设计：默认提供当天全部记录，指定日期或比较时使用涉及日期；调用策略建议复用现有按需查询，见 [04 的按日上下文调整](docs/04-ai-contract.md#按日上下文调整d09待开发)。当前代码尚未改为此规则。
 
