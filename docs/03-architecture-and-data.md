@@ -12,9 +12,9 @@
 | 图片 | image_picker、flutter_image_compress | 系统选择器、临时副本和保守压缩 |
 | 文件 | path_provider、flutter_file_dialog | 私有目录与系统导入导出 |
 | 标识 | uuid | 消息、操作、记录、资料 ID |
-| 备份加密 | cryptography，实施时固定版本 | PBKDF2-HMAC-SHA256 派生、AES-256-GCM；不自写密码算法 |
+| 备份加密 | cryptography，pubspec.lock 锁定版本 | PBKDF2-HMAC-SHA256 派生、AES-256-GCM；不自写密码算法 |
 
-初始最低 Android API 24。实际 Flutter、Dart、JDK、Gradle、compileSdk / targetSdk 和依赖版本在工程创建时核对并记录，提交 pubspec.lock，不把 latest 当版本。
+最低 Android API 24。当前 Flutter 3.19.4、Dart 3.3.2、JDK 17、Gradle 8.2、AGP 8.2.2，compileSdk / targetSdk 34。依赖由 pubspec.lock 锁定，完整环境记录见 10。
 
 不引入自有服务器、ORM / 代码生成、向量库、后台调度框架或通用 Agent SDK。历史关键词查询先用有界参数化 LIKE；小规模本地数据不需要搜索平台。
 
@@ -25,7 +25,7 @@
  ├─ RecordRepository：本地记录、汇总、历史查询、版本
  ├─ ChatCoordinator：FIFO、定向回答、停止、阶段恢复
  │   ├─ ContextBuilder：参考时间、近期对话、对象、授权资料
- │   ├─ AiGateway：Responses、SSE、每阶段主备一次
+ │   ├─ AiGateway：Responses、SSE、显式尝试与取消，次数按04的D10
  │   ├─ ProtocolParser：完整JSON、流式reply、字段与引用
  │   ├─ LocalLookup：受限只读查询，不接受SQL
  │   └─ ActionCommitter：独立子操作事务、回执、撤销
@@ -36,32 +36,27 @@
  └─ SettingsRepository：普通设置、安全凭据
 ```
 
-职责不等于每项都要拆接口 / 实现类，普通具体类足够。共享仓库统一供卡片、日历、搜索与汇总使用，页面和 AI 不直接拼 SQL。
+职责不等于每项都要拆接口 / 实现类，普通具体类足够。记录、搜索与汇总共用 RecordRepository；协议校验并入 ContextBuilder，受限查询并入 RecordRepository，补算并入 ChatCoordinator，资料与记忆共用管理页。业务变更统一经过 ActionCommitter，AI 不生成或执行 SQL。
 
-发送事务保存消息、operation、queue_order、参考时间、定向对象和附件归属。执行时刷新当前数据快照；D03 暂经 vision 摘要持久化后转 text。文本返回完整提案，校验并保存子操作计划，然后逐个完整单位提交。实际提交后生成卡片，正常聊天成功且队列空闲时触发补算。
+发送事务保存消息、operation、queue_order、参考时间、定向对象和附件归属。执行时刷新当前数据快照；vision 摘要持久化后转 text。文本返回完整提案，校验并保存子操作计划，然后逐个完整单位提交。实际提交后生成卡片，正常聊天成功且队列空闲时触发补算。
 
-## 3. 预计工程目录
+## 3. 工程目录
 
-未来源码位于 app/，不覆盖根 README / docs。
+源码位于 app/，Android 工程位于 app/android/。
 
 ```text
 app/lib/
   main.dart、app.dart
-  core/database/（建库、迁移）
-  core/network/（endpoint、Responses、SSE）
-  core/storage/（Key、图片）
-  core/theme/、core/time/
-  records/（模型、仓库、详情、编辑器、撤销）
-  chat/（页面、协调器、上下文、提示词、协议、提交器）
+  core/（数据约定、建库、图片、主题、共享组件）
+  records/（仓库、事务提交与撤销、卡片、编辑器）
+  chat/（页面、协调器、Responses、上下文、提示词、确认预览）
   calendar/（月历、日详情、体重历史）
-  search/（消息搜索与本地只读查询）
-  library/（食品资料、确认卡、管理）
-  memory/（授权偏好、建议与管理）
+  library/（食品资料和授权偏好管理）
   settings/（接口、单位、外观）
-  data_management/（补算、CSV、备份、恢复）
+  data_management/（CSV、备份、恢复和清除）
 ```
 
-D01 直接编辑、D02 通用引用、D03 两阶段图片均为 09 中暂定值；数据库中的相关字段已明确标注用途，用户确认后才能落实对应实现。
+D01 直接编辑、D02 长按引用、D03 两阶段图片均已确认并实现。
 
 ## 4. 统一约定
 
@@ -70,11 +65,12 @@ D01 直接编辑、D02 通用引用、D03 两阶段图片均为 09 中暂定值�
 - `version` 每次实体变化递增，撤销也不回退版本。删除采用软删除，以保留撤销和引用信息；普通查询一律排除 deleted_at_ms 非空行。
 - 热量可空整数，营养素可空非负数；展示精度与存储原数值分开。每字段来源 `unknown / ai / user / label / library`，空值仅配 unknown。
 - 当前食用量与资料库营养基准分开；历史食物保存已经换算的实际值和来源快照，不实时引用会变化的库值计算。
-- 时间使用 local_date（发生日期权威）、可空 local_time / occurred_at_ms / utc_offset_minutes，另存 created_at_ms / updated_at_ms。未知时刻不伪造。
+- 时间使用 local_date（发生日期权威）、local_time（HH:mm、中文时段或 null），另存 created_at_ms / updated_at_ms。支持的时段为凌晨、早上、上午、中午、下午、傍晚、晚上、深夜。只有 HH:mm 才计算 occurred_at_ms 和 utc_offset_minutes；时段或仅日期时两者为 null，不把时段换成精确发生时间戳。
+- 今天未给时间的 AI 新增记录在 savePlan 时采用 operation 中固定的发送时刻并保存到计划，重试仍使用原值。历史日期无时间则保留 null；手动新增在表单打开时预填当前时间，手动清空与既有记录编辑不受 AI 默认规则影响。已有 null 时间不批量回填，展示时只显示日期。
 
-## 5. SQLite schema 1
+## 5. SQLite schema 3
 
-当前没有已发行数据库；以下是未来首版建库契约。启用 `PRAGMA foreign_keys = ON`，应用写入边界验证枚举、JSON 结构和数值配套，外键不能只声明不启用。
+以下为当前 schema 3 建库契约，由 core/database.dart 创建。schema 1 原地升级给 chat_messages 增加可空的 model_reply_text、receipt_text 和 reasoning_text；schema 2 升级只加 reasoning_text。保留旧 body_text 与全部业务记录，不回填旧思考。reasoning_text 独立于正文和搜索内容，普通历史与引用上下文均不发送该字段。启用 `PRAGMA foreign_keys = ON`，应用写入边界验证枚举、JSON 结构和数值配套。
 
 ```sql
 CREATE TABLE operations (
@@ -119,6 +115,9 @@ CREATE TABLE chat_messages (
   role TEXT NOT NULL CHECK(role IN ('user','assistant')),
   content_kind TEXT NOT NULL,
   body_text TEXT NOT NULL,
+  model_reply_text TEXT,
+  receipt_text TEXT,
+  reasoning_text TEXT,
   delivery_status TEXT NOT NULL,
   image_count INTEGER NOT NULL DEFAULT 0 CHECK(image_count BETWEEN 0 AND 3),
   record_refs_json TEXT,
@@ -246,7 +245,8 @@ CREATE INDEX idx_attachment_state ON chat_attachments(state);
 
 ### 字段含义和删除关系
 
-- context_json 保存明确日期 / 记录 ID / D02 引用对象，不保存图片、Key。quoted_message_id 和 quote_snapshot_json 为 D02 暂定字段。
+- model_reply_text 保存已完整校验的自然回复，receipt_text 保存客户端最新状态；body_text 合并两者供复制、搜索和历史上下文使用。后续确认、澄清和撤销回执不覆盖自然回复，旧消息仍显示原 body_text。
+- context_json 保存明确日期 / 记录 ID / 引用对象，不保存图片、Key。quoted_message_id 和 quote_snapshot_json 用于长按引用定位和源消息删除后的必要摘要。
 - reply_to_action_id 在仓库边界校验指向待回答子操作；表间不循环外键。回答新消息仍有自己的 operation，通过该字段恢复原子事项，不重新创建已成功事项。
 - record_refs_json 保存类型 / ID / action_id，界面重新读取当前值。历史卡片、旧回执不是当前事实。
 - plan / payload 只存已校验数据提案。成功后可移除重复 payload，但 before / after / result 和去重 ID 保留，支持撤销。
@@ -272,15 +272,19 @@ CREATE INDEX idx_attachment_state ON chat_attachments(state);
 }
 ```
 
-每个字段必须有来源；空值与 unknown 配套。热量依据可含 lower_kcal / upper_kcal，存在时验证非负、下界不大于上界且包含点估值。使用库时依据包含 library_id、library_version 和当时基准数值快照，不保留照片。食品库 base_portion 可为 `{amount:100,unit:"ml"}` 或常用餐食 `{amount:1,unit:"份",description:"普通外卖盒"}`；缺少换算关系时不能硬算。
+每个字段必须有来源；空值与 unknown 配套。AI / 用户文字依据新写入时统一为 `{note:"说明"}`；此前已保存的字符串依据仍可在详情显示、编辑和备份恢复，无须清空记录。热量依据可含 lower_kcal / upper_kcal，存在时验证非负、下界不大于上界且包含点估值。使用库时依据包含 library_id、library_version 和当时基准数值快照，不保留照片。食品库 base_portion 可为 `{amount:100,unit:"ml"}` 或常用餐食 `{amount:1,unit:"份",description:"普通外卖盒"}`；缺少换算关系时不能硬算。
 
 ## 6. 设置与查询
 
-设置键：ai_profile（地址、四模型、HTTP 风险确认）、weight_unit、theme_mode（system / light / dark）、onboarding_completed、chat_draft（文字、附件 ID、定向对象）、privacy_notice_accepted。
+设置键：ai_profile（地址、文字主模型、可选图片主模型与两个兜底、各角色的 role_effort、HTTP 风险确认）、weight_unit、theme_mode（system / light / dark）、onboarding_completed、chat_draft（文字、附件 ID、定向对象）、privacy_notice_accepted。角色强度键为 text_main_effort / text_backup_effort / vision_main_effort / vision_backup_effort；缺少该键即跟随服务端，旧配置仍可读取。
+
+发送范围沿用 operations.context_json，不新增表字段。聊天列表 / 搜索 / 原消息定位在读取时关联成 sent_context_json，作为界面范围标记；这个读取字段不写入数据库或备份表。引用快照仅附带日期、标签与目标表 / ID，不递归复制原引用链。AI 上下文提供 selected_date、带日期的完整日合计和历史消息所属日期，明细截断不截断合计。
 
 Key 与规范化 Base URL 一起放安全存储。更换地址须重新确认 / 输入 Key，不能自动将旧 Key 发给新主机。模型列表为会话缓存，不是能力事实。
 
-草稿附件先登记 message_id=NULL，发送事务再绑定并清理草稿引用。相册来源路径不长期保存。
+草稿附件先登记 message_id=NULL，发送事务再绑定并清理草稿引用。绑定的压缩副本保留为聊天预览，state=pending 表示仍可读取，不代表必须重新上传；是否重做识图取决于 vision_summary_json。摘要保存后不删附件，删除聊天或清空数据才清理。相册来源路径不长期保存。
+
+食品表单使用独立library_editor_draft，保存表单字段、照片ID和识别草稿；library_photo_capture标记相机归属。启动恢复丢失的相机结果到该表单，并恢复添加页，不写入chat_draft或自动发起识别。清理孤立附件时保留该表单引用；保存 / 放弃后删除草稿与照片，整库恢复时清除旧表单草稿。食品备注保存在food_library.source_json.remarks，完整备份随资料保存，不需增加schema列。
 
 日营养每字段分别 SUM，同时统计该字段 NULL 项数。食物必须同时满足自身和所属餐未删除。无行时汇总数值仅用于运算为 0，展示由食物数量和缺失数量决定。
 
@@ -305,3 +309,14 @@ WHERE m.local_date=? AND m.deleted_at_ms IS NULL AND f.deleted_at_ms IS NULL;
 事务内只使用 sqflite transaction 对象，异常回滚这个单位，不吞错误继续“成功”。提交后通知旧 / 新日期与对象 ID，各 ViewModel 重读统一仓库。
 
 恢复整库与清除数据有专用事务边界，见 05。schema 失败保留文件并提示，不删库重建；未来升级写明确迁移，不默认支持更高版本降级。
+
+## 8. 运动数据扩展草案（R17，待确认）
+
+当前 schema 3 不含运动实体，本节不新增建表 SQL 或迁移。产品范围见 01 第 11 节；09 的细节确认后，再确定字段、版本与迁移方案。
+
+- 建议新增独立运动实体，保存运动名称、原描述、发生日期 / 可空时间、可空时长、可空消耗、来源与估算依据。距离、强度和估算所用体重是否结构化保存，随 D07 的估算口径确定，不引入无依据的必填资料。
+- 复用客户端 ID、来源消息、创建子操作、version、软删除和前后快照约定；运动不写入 meals 或 food_items，不占餐数，不改变饮食营养的含义。
+- 时间沿用第 4 节的固定参考时间和时段规则，不把句子中的先后顺序换算成具体时刻；时长未知与实际为 0 分开。
+- 日汇总分别读取饮食和运动，消耗另计已知值与缺失数；不能将多条运动与多条食物直接 JOIN 后相加造成重复。
+- 推荐由现有 RecordRepository、ActionCommitter 和 BackupService 扩展承担查询、提交、撤销和备份，不新增并行账本或通用运动平台。
+- 开发时补充原地迁移及旧备份兼容，保留已有饮食、体重、聊天和操作关系；新备份中的运动数据不得被旧版静默丢弃。
