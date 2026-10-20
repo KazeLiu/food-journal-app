@@ -46,7 +46,7 @@ flutter build apk --debug --no-pub
 
 本机 Flutter 路径为 D:\FlutterSDK，JDK 为 D:\Java\hold-that-bite-jdk17，Android SDK 为 D:\AndroidSDK。其他环境应配置自己的 Flutter / Java / Android SDK 路径，不复制 local.properties。
 
-产物：build/app/outputs/flutter-apk/app-debug.apk。应用 ID 为 local.foodjournal.app，版本 0.1.16+17。debug 包供个人设备验收；正式发布需要配置独立发布签名，不使用调试签名冒充正式包。
+产物：build/app/outputs/flutter-apk/app-debug.apk。应用 ID 为 local.foodjournal.app，版本 0.1.17+18。debug 包供个人设备验收；正式发布需要配置独立发布签名，不使用调试签名冒充正式包。
 
 ## 重点测试
 

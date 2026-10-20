@@ -1,15 +1,15 @@
-# App 图标设计稿 v1
+# App 图标（透明底）
 
-- 文件：[app-icon-graphite-coral-v1.png](app-icon-graphite-coral-v1.png)
-- 方向：已确认的 B，白瓷餐盘 + 珊瑚橘相机取景框，石墨色背景，简化的煎蛋、绿叶与三文鱼。
-- 生成方式：内置 `image_gen`，初版生成后进行一次风格简化编辑。
-- 状态：用户已选定简化版，已接入 Android 启动图标资源，包含在当前0.1.16 APK中并已保留数据安装到MuMu；构建和设备范围见[实现状态](../10-implementation-status.md)。
+- 文件：[app-icon-transparent-v2.png](app-icon-transparent-v2.png)，带 Alpha 通道的 PNG。
+- 方向：已确认的 B，白瓷餐盘 + 珊瑚橘相机取景框，简化的煎蛋、绿叶与三文鱼；盘外和取景框间隙透明。
+- 生成方式：内置 `image_gen`，对已选定的简化图案移除背景。
+- 状态：已接入 Android 启动图标资源并构建 0.1.17 APK，未自动安装，手机实际显示由用户安装后验收；构建和设备范围见[实现状态](../10-implementation-status.md)。
 
 ## Android 资源
 
 保留 Manifest 的 `@drawable/journal_icon` 入口。Android 7 使用对应密度的 `mipmap-*/ic_launcher.png`，尺寸为 48 / 72 / 96 / 144 / 192px；Android 8 及以上由 `drawable-anydpi-v26/journal_icon.xml` 使用自适应图标。
 
-自适应图层使用 432px（xxxhdpi 下为 108dp）画布，原稿居中导出为 280px（70dp），四角取景框和餐盘位于内部，外围延续石墨背景，为系统裁切留出空间。实现依据见 [Android 自适应图标规范](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive)。没有另行生成或改变已确认的图案。
+自适应图层使用透明的 432px（xxxhdpi 下为 108dp）画布，原稿居中导出为 224px（56dp），为四角取景框预留裁切空间；背景层同样透明，不添加黑色底板。实现依据见 [Android 自适应图标规范](https://developer.android.com/develop/ui/compose/system/icon_design_adaptive)。
 
 在项目根目录通过 Windows PowerShell 重新导出这些 PNG：
 
@@ -24,9 +24,7 @@
 ## 最终编辑提示词
 
 ```text
-Edit the supplied icon. Change its rendering language from realistic food photography to a beautifully simplified sculptural Apple-style app icon. Preserve the approved concept, centered top-down composition, white circular plate, graphite edge-to-edge background, four coral camera viewfinder corners, and the three food categories. Keep all elements centered and crop-safe.
+Edit this exact approved app icon by removing ONLY its graphite / charcoal background. Produce a genuine RGBA PNG with a fully transparent background, including the entire outside canvas, the gaps between the plate and the four coral viewfinder brackets, and the space inside the four separated brackets outside the plate. Do not put the icon on a black, white, gray, colored, or checkerboard background. The background must be actual alpha transparency, not a painted checkerboard.
 
-The essential change is strong visual simplification and restrained shallow 3D: smooth, deliberately designed geometric silhouettes with almost no surface texture. This must look like a premium designed app symbol, NOT a food photograph. The egg becomes one smooth, broad ivory-white silhouette with a single golden dome yolk: no fried bubbles, brown crispy edges, oil, or pepper. Replace the realistic spinach bunch with exactly TWO broad, simple muted-green leaf shapes, just one gentle center fold on each: no stems, fine veins, speckles, or photographic detail. The salmon becomes one softly rounded coral-orange wedge with only two broad shallow diagonal grooves: no fish-muscle striations, grilled crust, seasoning, or wet shine. Keep the plate a clean shallow porcelain disc with a subtle rim, not a deep bowl. Use soft satin material, delicate controlled edge highlights and short subtle shadows. Crisp refined geometry, no outlines around food, no plastic toy gloss. Keep dimensionality understated and recognizable at 48px.
-
-Keep the background neutral graphite, the four rounded viewfinder brackets soft coral, and the plate ivory. Calm, sophisticated, clean, friendly, modern health-app identity. Full square opaque icon artwork; no rounded outer tile baked in, no extra props, no text or symbols, no phone, no sparkles, no mockup or border canvas.
+Preserve the original icon artwork faithfully: the white porcelain plate, the simplified smooth fried egg and golden yolk, exactly two green leaves, the simplified coral-orange salmon wedge, and the four separate rounded coral camera-viewfinder corner brackets. Keep their original positions, scale, colors, materials, shape, top-down perspective, and understated dimensional highlights. Do not redesign or add anything. Keep plate interior shading and the food contact shadows, but remove the charcoal backdrop and any broad black drop shadow or dark halo outside the plate or brackets. Edges must be clean and antialiased, with no black fringe when placed on a white or light background. Preserve the original square composition and crop-safe spacing. No text, no added outline, no phone, no new objects. This is background extraction, not a new illustration.
 ```

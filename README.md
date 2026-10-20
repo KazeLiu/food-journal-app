@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/app-icon-graphite-coral-v1.png" width="128" alt="AI 减脂伙伴：餐盘与相机取景框图标">
+  <img src="docs/assets/app-icon-transparent-v2.png" width="128" alt="AI 减脂伙伴：透明底餐盘与相机取景框图标">
 </p>
 <h1 align="center">AI 减脂伙伴</h1>
 <p align="center">随手说说吃了什么，留下自己的饮食与体重记录。</p>
@@ -56,7 +56,7 @@ Key只保存在设备安全存储。使用AI时，会向你配置的服务发送
 
 ## 开发文档
 
-Flutter Android 源码位于 [app/](app/README.md)，当前版本 **0.1.16+17**。构建、安装和实际验收范围见 [10 实现状态](docs/10-implementation-status.md)；当前包使用开发调试签名，正式发布需要独立签名。
+Flutter Android 源码位于 [app/](app/README.md)，当前版本 **0.1.17+18**。构建、安装和实际验收范围见 [10 实现状态](docs/10-implementation-status.md)；当前包使用开发调试签名，正式发布需要独立签名。
 
 | 文档 | 内容 |
 | --- | --- |
@@ -84,7 +84,7 @@ D01、D02、D03 均已确认 A：保留直接编辑、长按引用不加右滑�
 
 ## 主题视觉升级（待实施）
 
-主题视觉升级按 [11 主题视觉规范](docs/11-theme-design.md)：同时优化浅色与深色，沿用 Flutter 原生主题和现有设置持久化，保留业务功能与布局。主题规范待实施；“餐盘 + 相机取景框”[图标](docs/assets/app-icon-graphite-coral-v1.png) 已接入 Android 多密度与自适应资源，并包含在当前已安装的 APK 中。
+主题视觉升级按 [11 主题视觉规范](docs/11-theme-design.md)：同时优化浅色与深色，沿用 Flutter 原生主题和现有设置持久化，保留业务功能与布局。主题规范待实施；“餐盘 + 相机取景框”的[透明底图标](docs/assets/app-icon-transparent-v2.png) 已接入 Android 多密度与自适应资源，手机实际显示由用户安装后验收。
 
 ## 实现约定
 

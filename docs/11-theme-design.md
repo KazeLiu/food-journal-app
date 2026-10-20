@@ -1,6 +1,6 @@
 # 11 主题视觉规范
 
-**状态：主题设计要求已整理，待实施；已确认的简化版 App 图标已接入 Android 资源。** 图标已包含在当前0.1.16 APK中并安装到MuMu，见[实现状态](10-implementation-status.md)；本规范的主题改造尚未实施，对应分析、测试、构建和设备检查按后续范围执行。
+**状态：主题设计要求已整理，待实施；已确认的简化版 App 图标以透明底 PNG 接入 Android 资源。** 当前构建与安装范围见[实现状态](10-implementation-status.md)；本规范的主题改造尚未实施，对应分析、测试、构建和设备检查按后续范围执行。
 
 ## 1. 目标和范围
 
@@ -226,6 +226,6 @@ flutter build apk --debug --no-pub
 
 已确认采用 **B：餐盘 + 相机取景框**，不画完整手机。中央白瓷餐盘放简化食物，取景框表达拍照记录；风格干净、精致、轻微立体，高光和阴影克制，缩小后仍能辨认，不加文字、手或桌面等装饰。
 
-图标采用本规范的石墨色与柔和珊瑚橘方向，食物保留自然色，不要求所有食物使用品牌色。设计稿见 [app-icon-graphite-coral-v1.png](assets/app-icon-graphite-coral-v1.png)，生成方式和最终编辑提示词见 [图标设计稿记录](assets/app-icon-graphite-coral-v1.md)。已将写实食物细节简化为清晰的立体形状，便于小尺寸识别。
+图标使用柔和珊瑚橘取景框，食物保留自然色，餐盘和取景框之外为真实透明通道，不添加石墨色底板或黑边。原稿见 [app-icon-transparent-v2.png](assets/app-icon-transparent-v2.png)，生成方式和最终编辑提示词见 [图标记录](assets/app-icon-graphite-coral-v1.md)。食物保持清晰、简化的立体形状，便于小尺寸识别。
 
 已替换 Android 启动图标资源，保留 `@drawable/journal_icon` 入口，提供五种密度的旧版图标及 Android 8 起的自适应图标。导出方式见图标记录；未更换页面内的 Material 图标，也未改变主题或业务逻辑。主题在实际界面中校准配色时，图标背景与取景框可同步微调。
