@@ -20,6 +20,8 @@ class BackupService {
   static const preferenceKeys = [
     'weight_unit',
     'theme_mode',
+    'height_cm',
+    'sex',
     'onboarding_completed'
   ];
   final RecordRepository records;
@@ -346,6 +348,8 @@ class BackupService {
         !preferences.containsKey('onboarding_completed') ||
             preferences['onboarding_completed'] is bool,
         '引导设置不正确');
+    SettingsRepository.validateBodyProfile(
+        {'height_cm': preferences['height_cm'], 'sex': preferences['sex']});
     final staging = await openDatabase(inMemoryDatabasePath,
         version: 1,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),

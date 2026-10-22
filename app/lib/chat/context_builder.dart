@@ -283,6 +283,7 @@ class ContextBuilder {
       'unresolved_inputs': unresolved
     });
   }
+      'body_profile': await settings.bodyProfile(),
 
   Json normalize(Json context) {
     final registry = <String, dynamic>{

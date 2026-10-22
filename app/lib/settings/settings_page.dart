@@ -6,6 +6,7 @@ import '../core/widgets.dart';
 import '../data_management/data_page.dart';
 import '../library/library_page.dart';
 import 'ai_settings_page.dart';
+import 'settings_repository.dart';
 
 class SettingsPage extends StatelessWidget {
   final AppServices s;
@@ -71,6 +72,46 @@ class SettingsPage extends StatelessWidget {
                                             () => s.settings
                                                 .set('theme_mode', v)))),
                               ])),
+                              const SectionTitle('估算参考（可选）'),
+                              Card(
+                                  child: Column(children: [
+                                ListTile(
+                                    leading: const Icon(Icons.height),
+                                    title: const Text('身高'),
+                                    trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(data['body']['height_cm'] == null
+                                              ? '未设置'
+                                              : '${numberText(data['body']['height_cm'] as num, 2)} cm'),
+                                          const Icon(Icons.chevron_right)
+                                        ]),
+                                    onTap: () => perform(
+                                        context,
+                                        () => _editHeight(
+                                            context,
+                                            data['body']['height_cm']
+                                                as num?))),
+                                ListTile(
+                                    leading: const Icon(Icons.person_outline),
+                                    title: const Text('性别'),
+                                    trailing: DropdownButton<String>(
+                                        value: data['body']['sex'] as String? ??
+                                            'unset',
+                                        items: const [
+                                          DropdownMenuItem(
+                                              value: 'unset',
+                                              child: Text('未设置')),
+                                          DropdownMenuItem(
+                                              value: 'male', child: Text('男')),
+                                          DropdownMenuItem(
+                                              value: 'female', child: Text('女'))
+                                        ],
+                                        onChanged: (v) => perform(
+                                            context,
+                                            () => s.settings.set('sex',
+                                                v == 'unset' ? null : v)))),
+                              ])),
                               const SectionTitle('只保存你同意的资料'),
                               Card(
                                   child: Column(children: [
@@ -116,6 +157,59 @@ class SettingsPage extends StatelessWidget {
       ]));
   Future<Json> _load() async => {
         'unit': await s.settings.get('weight_unit', 'jin'),
-        'theme': await s.settings.get('theme_mode', 'system')
+        'theme': await s.settings.get('theme_mode', 'system'),
+        'body': await s.settings.bodyProfile()
       };
+
+  Future<void> _editHeight(BuildContext context, num? height) async {
+    final controller = TextEditingController(text: height?.toString() ?? '');
+    String? error;
+    Json? result;
+    try {
+      result = await showInputDialog<Json>(
+          context: context,
+          builder: (dialogContext) => StatefulBuilder(
+              builder: (context, setModal) => AlertDialog(
+                      title: const Text('身高'),
+                      content: TextField(
+                          controller: controller,
+                          autofocus: true,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          decoration: InputDecoration(
+                              labelText: '身高',
+                              suffixText: 'cm',
+                              helperText: '可留空清除。',
+                              errorMaxLines: 3,
+                              errorText: error)),
+                      actions: [
+                        TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: const Text('取消')),
+                        FilledButton(
+                            onPressed: () {
+                              final raw = controller.text.trim();
+                              final value =
+                                  raw.isEmpty ? null : num.tryParse(raw);
+                              try {
+                                require(raw.isEmpty || value != null,
+                                    '请输入有效的身高（厘米）');
+                                SettingsRepository.validateBodyProfile(
+                                    {'height_cm': value});
+                              } on AppError catch (e) {
+                                setModal(() => error = e.message);
+                                return;
+                              }
+                              Navigator.pop(
+                                  dialogContext, {'height_cm': value});
+                            },
+                            child: const Text('保存'))
+                      ])));
+    } finally {
+      controller.dispose();
+    }
+    if (result != null) {
+      await s.settings.set('height_cm', result['height_cm']);
+    }
+  }
 }

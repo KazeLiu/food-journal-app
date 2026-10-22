@@ -55,6 +55,20 @@ class SettingsRepository {
     records.changed();
   }
 
+  Future<Json> bodyProfile() async => {
+        'height_cm': await get('height_cm'),
+        'sex': await get('sex'),
+      };
+
+  static void validateBodyProfile(Json profile) {
+    final height = profile['height_cm'];
+    require(
+        height == null ||
+            height is num && height.isFinite && height > 0 && height <= 300,
+        '身高请输入大于 0、不超过 300 的厘米数，或留空清除');
+    require([null, 'male', 'female'].contains(profile['sex']), '性别设置不正确');
+  }
+
   static String normalizeUrl(String input, bool allowHttp) {
     final value = input.trim().replaceFirst(RegExp(r'/+$'), '');
     final uri = Uri.tryParse(value);

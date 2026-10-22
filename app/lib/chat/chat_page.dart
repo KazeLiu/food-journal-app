@@ -644,69 +644,61 @@ class _ChatPageState extends State<ChatPage> {
           future: s.records.totals(today()),
           builder: (total) => Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Card(
-                        child: InkWell(
-                            borderRadius: BorderRadius.circular(20),
-                            onTap: () => s.goDay(today()),
-                            child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Row(children: [
-                                  Expanded(
-                                      child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                        Text(
-                                            '今天 · ${total['meal_count']} 餐${total['other_count'] > 0 ? ' · ${total['other_count']} 次加餐' : ''}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall),
-                                        const SizedBox(height: 4),
-                                        Text(calorieText(total),
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleLarge),
-                                        if (total['missing_calories_kcal'] > 0)
-                                          Text(
-                                              '${total['missing_calories_kcal']} 项热量待估算',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall)
-                                      ])),
-                                  const Icon(Icons.chevron_right),
-                                ])))),
-                    const SizedBox(height: 8),
-                    Center(
-                        child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 556),
-                            child: Row(children: [
-                              _shortcut(Icons.restaurant_outlined, '记录饮食',
-                                  focus.requestFocus),
-                              const SizedBox(width: 8),
-                              _shortcut(Icons.monitor_weight_outlined, '记录体重',
-                                  () => openWeightEditor(context, s)),
-                              const SizedBox(width: 8),
-                              _shortcut(
-                                  Icons.auto_awesome_outlined,
-                                  '今日分析',
-                                  () => perform(context,
-                                      () => _send('请总结今天已经记录的饮食和营养。'))),
-                            ]))),
-                  ]))));
-
-  Widget _shortcut(
-          IconData icon, String label, VoidCallback onPressed) =>
-      Expanded(
-          child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 12)),
-              onPressed: onPressed,
-              icon: Icon(icon, size: 18),
-              label: Text(label, textAlign: TextAlign.center)));
+              child: IntrinsicHeight(
+                  child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                    Expanded(
+                        child: Card(
+                            child: InkWell(
+                                borderRadius: BorderRadius.circular(20),
+                                onTap: () => s.goDay(today()),
+                                child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Row(children: [
+                                      Expanded(
+                                          child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                            Text(
+                                                '今天 · ${total['meal_count']} 餐${total['other_count'] > 0 ? ' · ${total['other_count']} 次加餐' : ''}',
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall),
+                                            const SizedBox(height: 4),
+                                            Text(calorieText(total),
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .titleLarge),
+                                            if (total['missing_calories_kcal'] >
+                                                0)
+                                              Text(
+                                                  '${total['missing_calories_kcal']} 项热量待估算',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .bodySmall)
+                                          ])),
+                                      const Icon(Icons.chevron_right),
+                                    ]))))),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                        width: 96,
+                        child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 12)),
+                            onPressed: () => perform(
+                                context, () => _send('请总结今天已经记录的饮食和营养。')),
+                            child: const Column(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.auto_awesome_outlined, size: 24),
+                                  SizedBox(height: 4),
+                                  Text('今日分析', textAlign: TextAlign.center)
+                                ]))),
+                  ])))));
 
   Widget _message(Json m) {
     final user = m['role'] == 'user';
