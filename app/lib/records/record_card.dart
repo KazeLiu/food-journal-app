@@ -197,9 +197,11 @@ class FoodNutrition extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (food['estimation_note'] != null)
-                        Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(food['estimation_note'] as String)),
+                        Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(food['estimation_note'] as String))),
                       for (var i = 0; i < 4; i++)
                         if (basis[nutritionFields[i]] != null)
                           Padding(
