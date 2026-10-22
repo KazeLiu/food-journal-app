@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="record_weight"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_weight"
+        android:shortcutShortLabel="@string/shortcut_record_weight"
+        android:shortcutLongLabel="@string/shortcut_record_weight">
+        <intent android:action="local.foodjournal.app.action.RECORD_WEIGHT"
+            android:targetPackage="local.foodjournal.app"
+            android:targetClass="local.foodjournal.food_journal.ShortcutActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="quick_camera"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_camera"
+        android:shortcutShortLabel="@string/shortcut_quick_camera"
+        android:shortcutLongLabel="@string/shortcut_quick_camera">
+        <intent android:action="local.foodjournal.app.action.QUICK_CAMERA"
+            android:targetPackage="local.foodjournal.app"
+            android:targetClass="local.foodjournal.food_journal.ShortcutActivity" />
+    </shortcut>
+</shortcuts>

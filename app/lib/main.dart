@@ -26,6 +26,7 @@ class _JournalBootstrapState extends State<JournalBootstrap> {
           final services = snapshot.data;
           if (services == null) {
             return MaterialApp(
+                title: '食记',
                 theme: journalTheme(false),
                 darkTheme: journalTheme(true),
                 debugShowCheckedModeBanner: false,
@@ -56,7 +57,7 @@ class _JournalBootstrapState extends State<JournalBootstrap> {
           return ValueListenableBuilder<String>(
               valueListenable: services.settings.theme,
               builder: (context, mode, _) => MaterialApp(
-                  title: 'AI 减脂伙伴',
+                  title: '食记',
                   debugShowCheckedModeBanner: false,
                   theme: journalTheme(false),
                   darkTheme: journalTheme(true),
@@ -72,6 +73,7 @@ class _JournalBootstrapState extends State<JournalBootstrap> {
                     GlobalWidgetsLocalizations.delegate,
                     GlobalCupertinoLocalizations.delegate
                   ],
+                  navigatorObservers: [services.navigation],
                   home: JournalHome(services: services)));
         });
   }

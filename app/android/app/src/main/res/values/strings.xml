@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">食记</string>
+    <string name="shortcut_record_weight">记录体重</string>
+    <string name="shortcut_quick_camera">快速拍照录入</string>
+</resources>

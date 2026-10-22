@@ -40,6 +40,7 @@ class _ChatPageState extends State<ChatPage> {
   Json? historyBoundary;
   bool newMessages = false;
   bool draftLoaded = false;
+  bool pickingImages = false;
   String? highlighted;
   Timer? draftTimer;
 
@@ -217,6 +218,16 @@ class _ChatPageState extends State<ChatPage> {
   void _intent() {
     final intent = s.chatIntent.value;
     if (intent == null || !mounted) return;
+    if (intent['capture_photo'] == true || intent['focus_input'] == true) {
+      if (!draftLoaded) return;
+      s.chatIntent.value = null;
+      if (intent['capture_photo'] == true) {
+        unawaited(perform(context, () => _pick(true)));
+      } else {
+        _focusComposer();
+      }
+      return;
+    }
     if (intent['reset'] == true) {
       draftTimer?.cancel();
       followLatest = true;
@@ -254,15 +265,22 @@ class _ChatPageState extends State<ChatPage> {
     if (!draftLoaded) return;
     draftTimer?.cancel();
     draftTimer = Timer(
-        const Duration(milliseconds: 350),
-        () => unawaited(s.settings.set('chat_draft', {
-              'text': text.text,
-              'attachments': attachments.map((a) => a['id']).toList(),
-              'context': directed,
-              'quote': quote,
-              'reply_to': replyTo
-            })));
+        const Duration(milliseconds: 350), () => unawaited(_persistDraft()));
   }
+
+  Future<void> _persistDraft() => s.settings.set('chat_draft', {
+        'text': text.text,
+        'attachments': attachments.map((a) => a['id']).toList(),
+        'context': directed,
+        'quote': quote,
+        'reply_to': replyTo
+      });
+
+  void _focusComposer() => WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            s.tab.value == 0 &&
+            ModalRoute.of(context)?.isCurrent == true) focus.requestFocus();
+      });
 
   Future<void> _send([String? quick]) async {
     if (sending) return;
@@ -307,12 +325,21 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _pick(bool camera) async {
-    final picked = await s.images.pick(camera, attachments.length);
-    if (!mounted) return;
-    setState(() {
-      attachments.addAll(picked);
-    });
-    _saveDraft();
+    require(draftLoaded, '聊天草稿正在恢复，请稍后添加图片');
+    require(!pickingImages, '上一张图片还在处理中，请稍后再添加');
+    setState(() => pickingImages = true);
+    draftTimer?.cancel();
+    try {
+      await _persistDraft();
+      if (camera) focus.unfocus();
+      final picked = await s.images.pick(camera, attachments.length);
+      if (!mounted) return;
+      setState(() => attachments.addAll(picked));
+      await _persistDraft();
+      if (mounted && camera && picked.isNotEmpty) _focusComposer();
+    } finally {
+      if (mounted) setState(() => pickingImages = false);
+    }
   }
 
   Future<void> _menu(Json message) async {
@@ -977,6 +1004,7 @@ class _ChatPageState extends State<ChatPage> {
         Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
           PopupMenuButton<bool>(
               tooltip: '添加图片',
+              enabled: draftLoaded && !pickingImages,
               icon: const Icon(Icons.add_circle_outline),
               onSelected: (camera) => perform(context, () => _pick(camera)),
               itemBuilder: (_) => const [
@@ -1013,7 +1041,9 @@ class _ChatPageState extends State<ChatPage> {
                       Theme.of(context).colorScheme.onSurface.withOpacity(.12),
                   disabledForegroundColor:
                       Theme.of(context).colorScheme.onSurface.withOpacity(.38)),
-              onPressed: sending ? null : () => perform(context, _send),
+              onPressed: sending || pickingImages
+                  ? null
+                  : () => perform(context, _send),
               icon: const Icon(Icons.arrow_upward)),
         ]),
       ]));

@@ -58,6 +58,12 @@ app/lib/
 
 D01 直接编辑、D02 长按引用、D03 两阶段图片均已确认并实现。
 
+### Android 桌面快捷入口
+
+静态 shortcuts.xml 注册“记录体重 / 快速拍照录入”。ShortcutActivity 使用独立临时任务转发到原 MainActivity，避免静态快捷方式的清任务标志重建主页面；不改包名、签名或数据库。MainActivity 通过 `local.foodjournal.app/shortcuts` MethodChannel 暂存冷启动或 onNewIntent 的入口，Flutter 在引导完成后调用 takeShortcut 消费；重建状态保留已消费标记，拍照回来不重放入口。
+
+JournalHome 串行消费入口，通过 NavigatorObserver 读取当前路由，并以 maybePop 保留现有表单退出确认，不强制丢弃修改。体重使用原 WeightEditor；拍照通过一次性 chatIntent 控制项调用原 ImageService，不把控制项存进 AI 上下文。ChatPage 等草稿加载后再拍照，打开相机前和照片返回后立即保存草稿；照片准备期间不允许重复选图或发送，返回后才聚焦输入，不自动发送。丢失照片恢复后优先回到聊天，食品资料照片仍与聊天恢复隔离。
+
 ## 4. 统一约定
 
 - ID 为客户端 UUID。AI 新对象只给本次 `client_ref`，不能生成数据库真实 ID。
@@ -278,6 +284,8 @@ CREATE INDEX idx_attachment_state ON chat_attachments(state);
 
 设置键：ai_profile（地址、文字主模型、可选图片主模型与两个兜底、各角色的 role_effort、HTTP 风险确认）、weight_unit、theme_mode（system / light / dark）、onboarding_completed、chat_draft（文字、附件 ID、定向对象）、privacy_notice_accepted。角色强度键为 text_main_effort / text_backup_effort / vision_main_effort / vision_backup_effort；缺少该键即跟随服务端，旧配置仍可读取。
 
+可选个人资料使用同一 app_settings 的 height_cm（大于 0、不超过 300 的有限数值或 null）与 sex（male / female / null）。无需新表或 schema 迁移，当前仍为 schema 4。SettingsRepository.bodyProfile 读取为 AI context.body_profile；设置页输入及备份导入共用校验，未设置保持 null，不虚构默认身高或性别。
+
 发送范围沿用 operations.context_json，不新增表字段。聊天列表 / 搜索 / 原消息定位在读取时关联成 sent_context_json，作为界面范围标记；这个读取字段不写入数据库或备份表。引用快照仅附带日期、标签与目标表 / ID，不递归复制原引用链。AI 上下文提供 selected_date、带日期的完整日合计和历史消息所属日期，明细截断不截断合计。
 
 Key 与规范化 Base URL 一起放安全存储。更换地址须重新确认 / 输入 Key，不能自动将旧 Key 发给新主机。模型列表为会话缓存，不是能力事实。
@@ -298,7 +306,7 @@ WHERE m.local_date=? AND m.deleted_at_ms IS NULL AND f.deleted_at_ms IS NULL;
 
 蛋白质、脂肪、碳水同样计算，不能将餐与多条体重 JOIN 后求和。餐数为有效 breakfast / lunch / dinner 去重，其他事件另计。月历批量查月范围，不每天循环查询。
 
-消息关键词搜索对 body_text 使用绑定参数并转义 LIKE 的 `% / _ / 反斜线`，每页 50 条，排序键 created_at_ms / id，可加载定位原消息周围内容。食品 / 记忆候选查询只返回相关有效条目。AI 查询目录见 04，不执行模型 SQL。
+消息关键词搜索对 body_text 使用绑定参数并转义 LIKE 的 `% / _ / 反斜线`，每页 50 条，排序键 created_at_ms / id，可加载定位原消息周围内容。食品资料先提供全部有效条目的精简目录供语义判断，营养详情通过原有候选或 find_library.ids 获取；ID 列表限定 1–50 项，SQL 占位绑定，可与原关键词 / 品牌 / 口味 / 规格取交集。目录不带入库方式或时间排序权重，不新增分类字段、向量库或表结构。记忆仅提供已确认有效条目。AI 查询目录见 04，不执行模型 SQL。
 
 体重输入普通正十进制、最多两位小数，先转百分之一单位整数：132斤→13200×5=66000克；66公斤→6600×10=66000克。显示从克换算，去无意义尾零。
 

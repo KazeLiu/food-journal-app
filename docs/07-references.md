@@ -50,12 +50,13 @@ Android是唯一运行目标，Windows是开发宿主。不因文档存Windows�
 | --- | --- |
 | Android | 最低API24，compile / target 34；实际工具链见10 |
 | 状态 / 路由 | ChangeNotifier / Navigator，三页保留状态 |
+| 桌面快捷方式 | [Android 静态快捷方式](https://developer.android.com/develop/ui/compose/system/shortcuts/creating-shortcuts)和[任务转发规则](https://developer.android.com/develop/ui/compose/system/shortcuts/managing-shortcuts)，通过原生 Activity / Flutter MethodChannel 接入，不新增插件 |
 | 网络 | Responses-only、store=false；text流式、vision摘要可非流式 |
 | 主备 | D10：主模型最多两次，仍失败才切已配备用，备用最多两次；全部模型调用入口覆盖，有界一次lookup往返 |
 | 图文路径 | D03已确认A，两阶段，见09 |
 | 直接编辑 / 引用 | D01、D02已确认A，直接编辑和长按引用，见09 |
 | 单次截止 | text90秒、vision120秒，取消与代次保护 |
-| 上下文 | 近期12条消息、20食物、10体重、明确日期每日50项；相关资料，不上传全库 |
+| 上下文 | 近期12条消息、20食物、10体重、明确日期每日50项；食品精简目录及选取的完整条目，业务历史不整库发送，现行规则见04 |
 | 图片 | 3张、JPEG、长边约1600 / 质量85起、压缩后5MiB/张；私有预览随聊天保留和删除，不进备份 |
 | 本地动作 | 每独立事项事务，软删除、版本保护、前后快照和逐项撤销 |
 | 补算 | 所有日期缺失字段，每批10项，前台正常成功后且用户队列空闲 |

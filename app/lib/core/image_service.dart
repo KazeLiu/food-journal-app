@@ -15,6 +15,7 @@ import 'data.dart';
 class ImageService {
   final RecordRepository records;
   final ImagePicker picker = ImagePicker();
+  bool recoveredChatImages = false;
   late final Directory root;
   ImageService(this.records);
 
@@ -84,6 +85,7 @@ class ImageService {
             'value_json': jsonEncode({...draft, 'attachments': ids})
           },
           conflictAlgorithm: ConflictAlgorithm.replace);
+      recoveredChatImages = true;
     }
   }
 

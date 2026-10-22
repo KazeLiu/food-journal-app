@@ -152,7 +152,7 @@ UTF-8、正确引号 / 换行转义；文本单元格以制表符、回车开头
 {
   "format":"food-journal-backup","format_version":1,"database_schema_version":4,
   "exported_at":"2026-10-19T12:00:00Z",
-  "preferences":{"weight_unit":"jin","theme_mode":"system","onboarding_completed":true},
+  "preferences":{"weight_unit":"jin","theme_mode":"system","height_cm":null,"sex":null,"onboarding_completed":true},
   "operations":[],"operation_actions":[],"chat_messages":[],
   "meals":[],"food_items":[],"weight_records":[],"exercise_records":[],
   "food_library":[],"ai_memories":[],"consent_proposals":[]
@@ -160,6 +160,8 @@ UTF-8、正确引号 / 换行转义；文本单元格以制表符、回车开头
 ```
 
 一致读事务生成快照，包括软删除数据、撤销历史、拒绝建议状态、授权资料和必要引用。排除 Key、整组 AI 地址 / 模型配置、全部图片 / 路径 / Base64、草稿、原始请求和可自动重放活动状态。
+
+preferences 包含可选身高与性别，导入校验与设置页一致；旧文件缺少这两项时按未设置恢复。内部安全副本、完整恢复和清除沿用同一设置键范围，CSV 不额外导出个人资料。新备份含个人资料，明文文件仍须按私人数据保管；旧 APK 对不支持的设置键明确拒绝，不静默丢失资料。
 
 当前导出 schema 4，恢复同时接受 schema 1 / 2 / 3。旧格式无运动表时按空列表导入；schema 4 必须包含运动列表。旧 APK 按 schema 版本拒绝新文件，不静默丢弃运动。schema 1 缺少的 model_reply_text、receipt_text 补为 null；schema 1 / 2 缺少的 reasoning_text 补为 null，保留原 body_text，不推测丢失的回复、思考或图片。思考随聊天进入完整备份，不进入 CSV；删除聊天时一起删除。
 
@@ -189,7 +191,7 @@ UTF-8、正确引号 / 换行转义；文本单元格以制表符、回车开头
 
 ## 10. 隐私和启动
 
-只发送当前任务必要上下文、授权资料和本次压缩图片，不上传全库或历史预览。store=false 只表达不依赖可检索响应存储，不等于第三方服务零日志承诺。首次说明本地保存与外部AI处理的区别。
+只发送当前任务必要上下文、授权资料和本次压缩图片，不整库发送业务历史或历史预览。食品语义匹配提供全部有效资料的精简目录，不附全库营养原值、入库方式或时间权重；所需营养详情通过相关完整条目或受限 ID 查询获取。store=false 只表达不依赖可检索响应存储，不等于第三方服务零日志承诺。首次说明本地保存与外部AI处理的区别。
 
 不接广告、分析或聊天崩溃内容上传。Android关闭默认云备份，并按系统版本配置云备份和设备迁移排除数据库、偏好、凭据与私有文件；不只写allowBackup就声称所有厂商迁移行为已验证。
 
