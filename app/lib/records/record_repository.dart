@@ -399,19 +399,22 @@ class RecordRepository extends ChangeNotifier {
 
   Future<List<Json>> library(
           {String keyword = '',
-          int limit = 100,
+          int? limit = 100,
           String? brand,
           String? variant,
-          String? packageSpec}) =>
+          String? packageSpec,
+          List<String>? ids}) =>
       db.query('food_library',
           where:
               "deleted_at_ms IS NULL AND (name LIKE ? ESCAPE '\\' OR brand LIKE ? ESCAPE '\\' OR aliases_json LIKE ? ESCAPE '\\' OR variant LIKE ? ESCAPE '\\' OR package_spec_json LIKE ? ESCAPE '\\')"
-              "${brand == null ? '' : " AND brand LIKE ? ESCAPE '\\'"}${variant == null ? '' : " AND variant LIKE ? ESCAPE '\\'"}${packageSpec == null ? '' : " AND package_spec_json LIKE ? ESCAPE '\\'"}",
+              "${brand == null ? '' : " AND brand LIKE ? ESCAPE '\\'"}${variant == null ? '' : " AND variant LIKE ? ESCAPE '\\'"}${packageSpec == null ? '' : " AND package_spec_json LIKE ? ESCAPE '\\'"}"
+              "${ids == null ? '' : ' AND id IN (${List.filled(ids.length, '?').join(',')})'}",
           whereArgs: [
             ...List.filled(5, '%${escapeLike(keyword)}%'),
             if (brand != null) '%${escapeLike(brand)}%',
             if (variant != null) '%${escapeLike(variant)}%',
-            if (packageSpec != null) '%${escapeLike(packageSpec)}%'
+            if (packageSpec != null) '%${escapeLike(packageSpec)}%',
+            if (ids != null) ...ids
           ],
           orderBy: 'updated_at_ms DESC,id',
           limit: limit);
@@ -485,12 +488,22 @@ class RecordRepository extends ChangeNotifier {
       case 'exercise_totals':
         rows = [await exerciseTotals(from, to)];
       case 'find_library':
+        final ids = query['ids'];
+        if (ids != null) {
+          require(
+              ids is List &&
+                  ids.isNotEmpty &&
+                  ids.length <= 50 &&
+                  ids.every((id) => id is String && id.isNotEmpty),
+              '食品资料 ID 列表须为 1–50 个非空字符串');
+        }
         rows = await library(
             keyword: query['keyword'] as String? ?? '',
             limit: limit + 1,
             brand: query['brand'] as String?,
             variant: query['variant'] as String?,
-            packageSpec: query['package_spec'] as String?);
+            packageSpec: query['package_spec'] as String?,
+            ids: (ids as List?)?.cast<String>());
       default:
         throw const AppError('不支持的历史查询类型');
     }

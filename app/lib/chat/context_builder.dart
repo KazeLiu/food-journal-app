@@ -48,6 +48,32 @@ class ContextBuilder {
     return matches.take(10).map((e) => e.row).toList();
   }
 
+  static List<Json> libraryCatalog(List<Json> library) {
+    final sorted = [...library]..sort((a, b) {
+        final byName = (a['name'] as String).compareTo(b['name'] as String);
+        return byName == 0
+            ? (a['id'] as String).compareTo(b['id'] as String)
+            : byName;
+      });
+    return sorted.map((row) {
+      final source = jsonMap(row['source_json'] as String);
+      return <String, dynamic>{
+        'id': row['id'],
+        'version': row['version'],
+        'name': row['name'],
+        'kind': row['kind'],
+        'aliases': jsonDecode(row['aliases_json'] as String),
+        if (row['brand'] != null) 'brand': row['brand'],
+        if (row['variant'] != null) 'variant': row['variant'],
+        if (row['package_spec_json'] != null)
+          'package_spec': jsonMap(row['package_spec_json'] as String),
+        'base_portion': jsonMap(row['base_portion_json'] as String),
+        if (source['note'] != null) 'description': source['note'],
+        if (source['remarks'] != null) 'remarks': source['remarks'],
+      };
+    }).toList();
+  }
+
   Iterable<Json> _summaryChain(Json? summary) sync* {
     while (summary != null) {
       yield summary;
@@ -226,7 +252,7 @@ class ContextBuilder {
     if (target != null && RecordRepository.entityTables.contains(targetTable)) {
       current = await records.row(targetTable!, target);
     }
-    final allLibrary = await records.library();
+    final allLibrary = await records.library(limit: null);
     final lookupText = '$text ${vision?['summary'] ?? ''}';
     final relevantLibrary = libraryCandidates(allLibrary, lookupText,
         directedId: directed['library_id'] as String?);
@@ -257,6 +283,7 @@ class ContextBuilder {
     return normalize({
       'reference_time': reference,
       'weight_unit': await settings.get('weight_unit', 'jin'),
+      'body_profile': await settings.bodyProfile(),
       'directed_context': directed,
       'directed_current_record': current,
       'recent_messages': datedHistory,
@@ -278,12 +305,12 @@ class ContextBuilder {
       'quoted_message': quoted,
       'quoted_records': quotedRecords,
       'library': relevantLibrary,
+      'library_catalog': libraryCatalog(allLibrary),
       'confirmed_memories': await records.memories(),
       'recent_actions': recentActions,
       'unresolved_inputs': unresolved
     });
   }
-      'body_profile': await settings.bodyProfile(),
 
   Json normalize(Json context) {
     final registry = <String, dynamic>{
@@ -656,14 +683,6 @@ class ContextBuilder {
   }
 
   void validateLabelSources(Json action, Json context, Json? summary) {
-    final byId = context['records_by_id'] as Map? ?? {};
-    final library = byId.values
-        .whereType<Map>()
-        .where((row) =>
-            row['nutrition_json'] is String &&
-            row['base_portion_json'] is String &&
-            row['aliases_json'] is String)
-        .toList();
     final evidence = <Json>[];
     for (final label in _summaryChain(summary)
         .expand((level) => (level['labels'] as List? ?? []).whereType<Map>())) {
@@ -708,12 +727,8 @@ class ContextBuilder {
     }
 
     prior(context);
-    void validate(dynamic value, [String? foodName]) {
+    void validate(dynamic value) {
       if (value is Map) {
-        final current = byId[value['id']];
-        final name = value['name'] as String? ??
-            (current is Map ? current['name'] as String? : null) ??
-            foodName;
         if (value['nutrition'] is Map) {
           final nutrition = value['nutrition'] as Map;
           final basis = value['nutrition_basis'] as Map? ?? {};
@@ -730,44 +745,17 @@ class ContextBuilder {
                       e['value'] == b['value_per_base'] &&
                       (field != 'calories_kcal' ||
                           e['energy_unit'] == b['energy_unit']));
-              if (knownLabel) continue;
-              // 复用库里已确认的同款标签时，保存为 library，并让提交器读取库原值换算。
-              final matches = name == null
-                  ? <Map>[]
-                  : library.where((row) {
-                      final names = [
-                        row['name'] as String,
-                        ...(jsonDecode(row['aliases_json'] as String) as List)
-                            .cast<String>()
-                      ];
-                      return names.any((n) => _foodName(n) == _foodName(name));
-                    }).toList();
-              require(b is Map && matches.length == 1,
-                  '标签数值缺少本次识别依据；复用食品资料请使用 library 来源、资料 ID 和版本');
-              final saved = matches.single;
-              final base = jsonMap(saved['base_portion_json'] as String);
-              final nutrients = jsonMap(saved['nutrition_json'] as String);
-              require(
-                  nutrients[field] is num &&
-                      b['consumed_amount'] is num &&
-                      (b['consumed_amount'] as num).isFinite &&
-                      b['consumed_amount'] >= 0 &&
-                      b['consumed_unit'] is String &&
-                      portionUnit(b['consumed_unit'] as String) ==
-                          portionUnit(base['unit'] as String),
-                  '食品资料换算缺少可靠的实际食用量，请使用资料基准的单位');
-              nutrition[field]['source'] = 'library';
-              b['library_id'] = saved['id'];
-              b['library_version'] = saved['version'];
+              require(knownLabel,
+                  '标签数值缺少识别依据；明确同款请用 library 来源和资料 ID / 版本，相近食物请用 ai 来源并说明参考与份量假设');
             }
           }
         }
         for (final v in value.values) {
-          validate(v, name);
+          validate(v);
         }
       } else if (value is List) {
         for (final v in value) {
-          validate(v, foodName);
+          validate(v);
         }
       }
     }

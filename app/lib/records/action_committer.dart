@@ -839,7 +839,9 @@ class ActionCommitter {
       if (old != null &&
           preserveUnchanged &&
           value == old[field] &&
-          n['source'] == source[field]) {
+          n['source'] == source[field] &&
+          (!newBasis.containsKey(field) ||
+              jsonEncode(newBasis[field]) == jsonEncode(basis[field]))) {
         values[field] = old[field];
         continue;
       }
