@@ -591,8 +591,8 @@ class ActionCommitter {
               '运动参数已改变，请重新估算消耗或清空');
         }
         await m.update('exercise_records', row['id'] as String, {
-          if (patch.containsKey('local_date') ||
-              patch.containsKey('local_time'))
+          if (merged['local_date'] != row['local_date'] ||
+              merged['local_time'] != row['local_time'])
             ...timeColumns(merged, m.reference),
           ...await _exerciseValues(m, merged,
               verifyWeight: estimateChanged ||
@@ -698,8 +698,8 @@ class ActionCommitter {
         }
         require(mealNames.containsKey(merged['meal_type']), '餐别不正确');
         await m.update('meals', row['id'] as String, {
-          if (patch.containsKey('local_date') ||
-              patch.containsKey('local_time'))
+          if (merged['local_date'] != row['local_date'] ||
+              merged['local_time'] != row['local_time'])
             ...timeColumns(merged, m.reference),
           'meal_type': merged['meal_type']
         });
@@ -741,8 +741,8 @@ class ActionCommitter {
           merged['local_time'] = null;
         }
         await m.update('weight_records', row['id'] as String, {
-          if (patch.containsKey('local_date') ||
-              patch.containsKey('local_time'))
+          if (merged['local_date'] != row['local_date'] ||
+              merged['local_time'] != row['local_time'])
             ...timeColumns(merged, m.reference),
           'input_value': merged['input_value'],
           'input_unit': merged['input_unit'],
