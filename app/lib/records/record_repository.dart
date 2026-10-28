@@ -72,7 +72,7 @@ class RecordRepository extends ChangeNotifier {
         await db.rawQuery('''SELECT meal_type,COUNT(*) count FROM meals m
       WHERE m.local_date BETWEEN ? AND ? AND m.deleted_at_ms IS NULL
       AND EXISTS(SELECT 1 FROM food_items f WHERE f.meal_id=m.id AND f.deleted_at_ms IS NULL)
-      GROUP BY meal_type''', [from, to ?? from]);
+      GROUP BY m.local_date,meal_type''', [from, to ?? from]);
     return {
       ...rows.single,
       'meal_count': count.where((e) => e['meal_type'] != 'other').length,
