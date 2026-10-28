@@ -59,7 +59,7 @@ flutter build apk --debug --no-pub
 
 本机 Flutter 路径为 D:\FlutterSDK，JDK 为 D:\Java\hold-that-bite-jdk17，Android SDK 为 D:\AndroidSDK。其他环境应配置自己的 Flutter / Java / Android SDK 路径，不复制 local.properties。
 
-debug 产物为 build/app/outputs/flutter-apk/app-debug.apk，版本化命名 food-journal-0.1.22-debug.apk。应用 ID 为 local.foodjournal.app，源码版本 0.1.22+23，展示名称为食记；沿用原调试签名，不能跨签名覆盖 release。本轮已构建并保留数据覆盖安装至 MuMu，实际构建与设备证据见 docs/10。
+debug 产物为 build/app/outputs/flutter-apk/app-debug.apk，版本化命名 food-journal-<版本>-debug.apk。应用 ID 为 local.foodjournal.app，源码版本 0.1.23+24，展示名称为食记；debug 沿用原调试签名，不能跨签名覆盖 release。0.1.23 仅构建 release，不构建 debug 或安装设备；既往设备证据见 docs/10。
 
 ### release 与发布签名
 
@@ -72,7 +72,7 @@ $env:FOOD_JOURNAL_SIGNING_PROPERTIES = Join-Path $env:USERPROFILE '.android\food
 flutter build apk --release --no-pub
 ```
 
-release 产物为 build/app/outputs/flutter-apk/app-release.apk，版本化命名为 food-journal-<版本>-release.apk。当前 [0.1.22 正式版](https://github.com/KazeLiu/food-journal-app/releases/tag/v0.1.22) 提供已校验的 food-journal-0.1.22-release.apk，沿用既有发布签名，可覆盖同发布签名的 0.1.20 release 包。拍照回填与输入框聚焦仍由用户在手机确认；首次从 debug 换装的备份、图片与 AI 配置限制见[发行说明](../docs/releases/v0.1.22.md)。
+release 产物为 build/app/outputs/flutter-apk/app-release.apk，版本化命名为 food-journal-<版本>-release.apk。当前 [0.1.23 正式版](https://github.com/KazeLiu/food-journal-app/releases/tag/v0.1.23) 提供 food-journal-0.1.23-release.apk，沿用既有发布签名，可覆盖同发布签名的 0.1.20 / 0.1.22 release 包。本轮修复与验证范围见[发行说明](../docs/releases/v0.1.23.md)；首次从 debug 换装的备份、图片与 AI 配置限制见[换装说明](../docs/releases/v0.1.22.md#从-debug-包换装前先备份)。
 
 ## 重点测试
 

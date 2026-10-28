@@ -6,7 +6,7 @@
 <p align="center"><strong>Android · Flutter · 本地保存 · 自选 AI 接口</strong></p>
 <p align="center">
   <a href="#界面一览">界面一览</a> ·
-  <a href="https://github.com/KazeLiu/food-journal-app/releases/tag/v0.1.22">下载正式版</a> ·
+  <a href="https://github.com/KazeLiu/food-journal-app/releases/tag/v0.1.23">下载正式版</a> ·
   <a href="#开始使用">开始使用</a> ·
   <a href="app/README.md">构建工程</a> ·
   <a href="#开发文档">开发文档</a>
@@ -55,7 +55,7 @@
 
 ## 开始使用
 
-1. 下载 [食记 0.1.22 正式版](https://github.com/KazeLiu/food-journal-app/releases/tag/v0.1.22)，或按 [Android 工程说明](app/README.md#构建)自行构建；无 API 也可手动记录。已有同发布签名的 0.1.20 release 包可覆盖升级；debug 包需先完整备份再换装，不能跨签名覆盖，见[换装说明](docs/releases/v0.1.22.md#从-debug-包换装前先备份)。
+1. 下载 [食记 0.1.23 正式版](https://github.com/KazeLiu/food-journal-app/releases/tag/v0.1.23)，或按 [Android 工程说明](app/README.md#构建)自行构建；无 API 也可手动记录。已有同发布签名的 0.1.20 / 0.1.22 release 包可覆盖升级；debug 包需先完整备份再换装，不能跨签名覆盖，见[换装说明](docs/releases/v0.1.22.md#从-debug-包换装前先备份)。
 2. 使用 AI 时，在“我的 → AI 接口与模型”填写 Base URL、Key 和文字主模型。服务需支持 **Responses API**；图片主模型按需配置，两个备用模型可留空，各模型可单独选择思考强度。
 3. 在 AI伙伴发消息，或进入“食品资料库 → 添加食品资料 → AI 拍照识别”。后者只填写表单，不创建已吃记录，需自行点击保存。
 
@@ -67,7 +67,7 @@ Key只保存在设备安全存储。使用AI时，会向你配置的服务发送
 
 ## 开发文档
 
-Flutter Android 源码位于 [app/](app/README.md)，当前源码版本 **0.1.22+23**，项目与软件展示名称统一为“食记”；包名、数据和发布签名不变。此版合入资料库语义匹配、详情间距和桌面快捷入口，提供同发布签名的 [0.1.22 正式版 APK](https://github.com/KazeLiu/food-journal-app/releases/tag/v0.1.22)。拍照回填和输入框聚焦由用户在手机确认；构建、安装和实际验收范围见 [10 实现状态](docs/10-implementation-status.md)。
+Flutter Android 源码位于 [app/](app/README.md)，当前源码版本 **0.1.23+24**，项目与软件展示名称为“食记”；包名、数据和发布签名不变。此版修复食品资料导致聊天失败、跨日期餐数少算、编辑记录意外改写时间戳和图片恢复阻断启动的问题，详见 [0.1.23 发布说明](docs/releases/v0.1.23.md)。构建、安装和实际验收范围见 [10 实现状态](docs/10-implementation-status.md)。
 
 | 文档 | 内容 |
 | --- | --- |
