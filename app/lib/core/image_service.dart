@@ -16,6 +16,7 @@ class ImageService {
   final RecordRepository records;
   final ImagePicker picker = ImagePicker();
   bool recoveredChatImages = false;
+  String? recoveryNotice;
   late final Directory root;
   ImageService(this.records);
 
@@ -64,9 +65,11 @@ class ImageService {
     }
     if (response.isEmpty) return;
     if (response.exception != null) {
-      throw AppError('上次图片选择未完成：${response.exception!.code}');
+      recoveryNotice = '上次图片选择未完成，请重新选择（${response.exception!.code}）。';
+      return;
     }
-    final recovered = response.files ?? [];
+    final recovered = response.files ??
+        <XFile>[if (response.file != null) response.file!];
     if (recovered.isNotEmpty) {
       final draftRows = await records.db
           .query('app_settings', where: 'key=?', whereArgs: ['chat_draft']);
@@ -74,9 +77,15 @@ class ImageService {
           ? <String, dynamic>{'text': '', 'attachments': []}
           : jsonMap(draftRows.single['value_json'] as String);
       final ids = List<String>.from(draft['attachments'] as List);
-      require(ids.length + recovered.length <= 3, '恢复的图片超过 3 张，请重新选择');
+      if (ids.length + recovered.length > 3) {
+        recoveryNotice = '聊天草稿最多保留 3 张图片，超出的照片未加入，请分次选择。';
+      }
       for (final file in recovered) {
-        ids.add((await prepare(file))['id'] as String);
+        if (ids.length < 3) {
+          ids.add((await prepare(file))['id'] as String);
+        } else {
+          await _removePickerCopy(file);
+        }
       }
       await records.db.insert(
           'app_settings',

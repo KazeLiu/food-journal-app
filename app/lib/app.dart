@@ -116,6 +116,9 @@ class _JournalHomeState extends State<JournalHome> with WidgetsBindingObserver {
   Future<void> _start() async {
     await _welcome();
     if (!mounted) return;
+    if (s.images.recoveryNotice != null) {
+      showNotice(context, s.images.recoveryNotice!);
+    }
     _shortcutsReady = true;
     var handledShortcut = false;
     await perform(context, () async {
