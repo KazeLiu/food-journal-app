@@ -66,7 +66,7 @@ class ContextBuilder {
         if (row['brand'] != null) 'brand': row['brand'],
         if (row['variant'] != null) 'variant': row['variant'],
         if (row['package_spec_json'] != null)
-          'package_spec': jsonMap(row['package_spec_json'] as String),
+          'package_spec': jsonDecode(row['package_spec_json'] as String),
         'base_portion': jsonMap(row['base_portion_json'] as String),
         if (source['note'] != null) 'description': source['note'],
         if (source['remarks'] != null) 'remarks': source['remarks'],
